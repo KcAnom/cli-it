@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://elev8tion.github.io/cli-it/</loc></url>
+  <url><loc>https://elev8tion.github.io/cli-it/pricing.html</loc></url>
+  <url><loc>https://elev8tion.github.io/cli-it/llms.txt</loc></url>
+  <url><loc>https://elev8tion.github.io/cli-it/llms-full.txt</loc></url>
+  <url><loc>https://elev8tion.github.io/cli-it/registry.json</loc></url>
+  <url><loc>https://elev8tion.github.io/cli-it/public_registry.json</loc></url>
+  <url><loc>https://elev8tion.github.io/cli-it/matrix_registry.json</loc></url>
+  <url><loc>https://elev8tion.github.io/cli-it/openapi.json</loc></url>
+</urlset>

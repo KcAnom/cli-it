@@ -1,0 +1,39 @@
+# CLI-It Hub
+
+> CLI-It makes real software agent-native: stateful CLI harnesses around real
+> applications, installable through the `cli-it` package manager, discovered
+> via JSON registries, with capability matrices and preview bundles.
+
+Install: `pip install cli-it-hub` (Python >= 3.10). Console command: `cli-it`.
+Disable telemetry: `export CLI_HUB_NO_ANALYTICS=1`.
+
+## Key commands
+
+- `cli-it list --json` / `cli-it search <q> --json` / `cli-it info <name>`
+- `cli-it install|uninstall|update <name>` — registry-driven installs
+- `cli-it launch <name> [args...]`
+- `cli-it can "<intent>" --json` — capability lookup across matrices
+- `cli-it matrix list|info|preflight|install|doctor|recipes|skill <name>` —
+  exit code 3 means capability gaps (soft failure; continue with what's ready)
+- `cli-it previews inspect|html|watch|open <ref>` — view preview bundles
+
+## Registries (this site)
+
+- /registry.json — harness CLIs (entries: name, version, install_cmd, entry_point, skill_md, …)
+- /public_registry.json — public CLIs (adds package_manager, npm_package, npx_cmd)
+- /matrix_registry.json — capability matrices (capabilities[].providers[])
+- /matrix/<name>/SKILL.md — matrix skill packs
+- /llms-full.txt — complete reference
+- /openapi.json — OpenAPI 3.1 for these endpoints
+
+## Build a harness
+
+Follow cli-it-plugin/HARNESS.md in https://github.com/elev8tion/cli-it
+(7 phases: analyze → design → implement → test-plan → test → document →
+generate SKILL.md → package as PEP 420 namespace cli_it.<software>, entry
+point cli-it-<software>).
+
+## Agent contract
+
+Use --json everywhere; check exit codes (0 ok, 1 fail, 2 usage, 3 gaps);
+absolute paths; verify output files exist after mutations/exports.

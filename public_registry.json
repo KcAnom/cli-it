@@ -1,0 +1,51 @@
+{
+  "meta": {
+    "repo": "https://github.com/elev8tion/cli-it",
+    "description": "CLI-It public registry — existing agent-friendly public CLIs that the hub can list and install alongside CLI-It harnesses.",
+    "updated": "2026-07-19"
+  },
+  "clis": [
+    {
+      "name": "ffmpeg",
+      "display_name": "FFmpeg",
+      "version": "7.0",
+      "description": "Swiss-army knife for audio/video transcode, filter graphs, and frame extraction.",
+      "requires": null,
+      "homepage": "https://ffmpeg.org",
+      "source_url": "https://github.com/FFmpeg/FFmpeg",
+      "install_cmd": "brew install ffmpeg",
+      "entry_point": "ffmpeg",
+      "skill_md": null,
+      "category": "video",
+      "package_manager": "brew",
+      "contributors": [
+        {
+          "name": "FFmpeg project",
+          "url": "https://ffmpeg.org"
+        }
+      ]
+    },
+    {
+      "name": "mermaid-cli",
+      "display_name": "Mermaid CLI",
+      "version": "11.4.2",
+      "description": "Render Mermaid diagram text into SVG/PNG/PDF from the command line.",
+      "requires": "node",
+      "homepage": "https://mermaid.js.org",
+      "source_url": "https://github.com/mermaid-js/mermaid-cli",
+      "install_cmd": "npm install -g @mermaid-js/mermaid-cli",
+      "entry_point": "mmdc",
+      "skill_md": null,
+      "category": "image-design",
+      "package_manager": "npm",
+      "npm_package": "@mermaid-js/mermaid-cli",
+      "npx_cmd": "npx -y @mermaid-js/mermaid-cli",
+      "contributors": [
+        {
+          "name": "mermaid-js",
+          "url": "https://github.com/mermaid-js"
+        }
+      ]
+    }
+  ]
+}

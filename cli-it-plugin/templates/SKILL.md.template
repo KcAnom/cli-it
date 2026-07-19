@@ -1,0 +1,39 @@
+---
+name: {{ skill_name }}
+description: {{ description }}
+version: {{ version }}
+license: Apache-2.0
+---
+
+# {{ display_name }} — agent harness CLI
+
+`{{ entry_point }}` is a CLI-It harness: a stateful command-line interface that
+drives the real {{ display_name }} software. Running it with no subcommand
+starts an interactive REPL; every command also works non-interactively.
+
+## Installation
+
+```bash
+{{ install_cmd }}
+{{ entry_point }} --help
+```
+
+## Command groups
+
+{{ command_groups_table }}
+
+## Examples
+
+{{ examples }}
+
+## Agent guidance
+
+- Pass `--json` on the root command for machine-readable output, then parse
+  stdout as JSON.
+- Always use **absolute paths** for project and output files.
+- Check the process return code after every invocation; non-zero means the
+  command failed and stderr explains why.
+- Verify that expected output files exist after mutating or exporting.
+- The REPL is for humans; agents should prefer one-shot subcommands.
+- Session state is protected by an exclusive file lock — run one mutating
+  command at a time per project.

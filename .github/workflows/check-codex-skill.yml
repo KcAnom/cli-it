@@ -1,0 +1,29 @@
+name: Check adapter skills
+
+on:
+  pull_request:
+    paths:
+      - "codex-skill/**"
+      - "hermes-skill/**"
+      - "reasonix-skill/**"
+      - "opencode-commands/**"
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify adapter files exist and have frontmatter
+        run: |
+          set -e
+          for f in codex-skill/SKILL.md hermes-skill/SKILL.md reasonix-skill/SKILL.md \
+                   opencode-commands/cli-it.md opencode-commands/cli-it-list.md \
+                   opencode-commands/cli-it-refine.md opencode-commands/cli-it-test.md \
+                   opencode-commands/cli-it-validate.md; do
+            [ -f "$f" ] || { echo "missing $f"; exit 1; }
+            head -1 "$f" | grep -q '^---$' || { echo "$f missing frontmatter"; exit 1; }
+          done
+          echo "adapter skills OK"

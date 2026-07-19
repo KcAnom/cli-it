@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use CLI-It in your research or tooling, please cite it as below."
+title: "CLI-It: Agent-native stateful CLI interfaces for real software"
+type: software
+authors:
+  - name: "The CLI-It Contributors"
+repository-code: "https://github.com/elev8tion/cli-it"
+url: "https://elev8tion.github.io/cli-it"
+license: Apache-2.0
+version: 0.4.1
+date-released: 2026-07-19
+keywords:
+  - ai-agents
+  - cli
+  - developer-tools
+  - automation
+abstract: >-
+  CLI-It is a monorepo ecosystem that makes GUI/desktop/SaaS software
+  agent-native. It provides a 7-phase methodology (HARNESS.md) that coding
+  agents follow to generate stateful CLI harnesses around real software, a
+  package manager (cli-it) with capability matrices and a preview viewer, and
+  registries published as a static hub site. The architecture is inspired by
+  HKUDS/CLI-Anything, rebuilt under the CLI-It name.

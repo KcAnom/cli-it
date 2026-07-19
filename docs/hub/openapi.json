@@ -1,0 +1,146 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "CLI-It Hub Registry API",
+    "description": "Read-only static JSON endpoints consumed by the cli-it package manager. The registry files ARE the hub API.",
+    "version": "0.4.1",
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://elev8tion.github.io/cli-it"
+    }
+  ],
+  "paths": {
+    "/registry.json": {
+      "get": {
+        "operationId": "getRegistry",
+        "summary": "CLI-It harness registry",
+        "responses": {
+          "200": {
+            "description": "Harness CLI entries",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/Registry"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public_registry.json": {
+      "get": {
+        "operationId": "getPublicRegistry",
+        "summary": "Public CLI registry",
+        "responses": {
+          "200": {
+            "description": "Public CLI entries (may include package_manager/npm fields)",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/Registry"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/matrix_registry.json": {
+      "get": {
+        "operationId": "getMatrixRegistry",
+        "summary": "Capability matrix registry",
+        "responses": {
+          "200": {"description": "Matrix definitions (schema_version 2)"}
+        }
+      }
+    },
+    "/registry-dates.json": {
+      "get": {
+        "operationId": "getRegistryDates",
+        "summary": "Last-updated metadata per registry entry",
+        "responses": {
+          "200": {"description": "Map of entry name to ISO date"}
+        }
+      }
+    },
+    "/llms.txt": {
+      "get": {
+        "operationId": "getLlmsTxt",
+        "summary": "Short agent-oriented product summary",
+        "responses": {"200": {"description": "Plain text", "content": {"text/plain": {}}}}
+      }
+    },
+    "/llms-full.txt": {
+      "get": {
+        "operationId": "getLlmsFullTxt",
+        "summary": "Complete agent command reference",
+        "responses": {"200": {"description": "Plain text", "content": {"text/plain": {}}}}
+      }
+    },
+    "/pricing.md": {
+      "get": {
+        "operationId": "getPricing",
+        "summary": "Pricing (free / open source)",
+        "responses": {"200": {"description": "Markdown", "content": {"text/markdown": {}}}}
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Registry": {
+        "type": "object",
+        "required": ["meta", "clis"],
+        "properties": {
+          "meta": {
+            "type": "object",
+            "properties": {
+              "repo": {"type": "string", "format": "uri"},
+              "description": {"type": "string"},
+              "updated": {"type": "string", "format": "date"}
+            }
+          },
+          "clis": {
+            "type": "array",
+            "items": {"$ref": "#/components/schemas/CliEntry"}
+          }
+        }
+      },
+      "CliEntry": {
+        "type": "object",
+        "required": [
+          "name", "display_name", "version", "description", "requires",
+          "homepage", "source_url", "install_cmd", "entry_point", "skill_md",
+          "category", "contributors"
+        ],
+        "properties": {
+          "name": {"type": "string"},
+          "display_name": {"type": "string"},
+          "version": {"type": "string"},
+          "description": {"type": "string"},
+          "requires": {"type": ["string", "null"]},
+          "homepage": {"type": "string"},
+          "source_url": {"type": ["string", "null"]},
+          "install_cmd": {"type": "string"},
+          "entry_point": {"type": "string"},
+          "skill_md": {"type": ["string", "null"]},
+          "category": {"type": "string"},
+          "contributors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {"type": "string"},
+                "url": {"type": "string"}
+              }
+            }
+          },
+          "package_manager": {"type": "string"},
+          "npm_package": {"type": "string"},
+          "npx_cmd": {"type": "string"}
+        }
+      }
+    }
+  }
+}

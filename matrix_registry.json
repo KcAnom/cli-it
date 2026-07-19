@@ -1,0 +1,267 @@
+{
+  "meta": {
+    "repo": "https://github.com/elev8tion/cli-it",
+    "description": "Curated CLI Matrix registry — capability-first tool matrices that agents preflight and install through the cli-it hub.",
+    "updated": "2026-07-19",
+    "schema_doc": "docs/cli-matrix/matrix_registry.schema.md"
+  },
+  "matrices": [
+    {
+      "name": "image-design",
+      "display_name": "Image & Design",
+      "version": "0.2.0",
+      "schema_version": "2",
+      "description": "Create, convert, and compose raster/vector imagery with real tools; scaffold reproducible design projects.",
+      "category": "image-design",
+      "skill_md": "cli-it-matrix/image-design/SKILL.md",
+      "clis": ["demoapp", "mermaid-cli"],
+      "capabilities": [
+        {
+          "id": "project.scaffold",
+          "intent": "Create a stateful, undoable design project an agent can mutate incrementally",
+          "inputs": ["project name", "output path"],
+          "outputs": ["project JSON file", "session state"],
+          "skill_search_hints": ["create project", "new project", "scaffold"],
+          "providers": [
+            {
+              "kind": "harness-cli",
+              "name": "demoapp",
+              "requires": {"binary": ["cli-it-demoapp"]},
+              "cost_tier": "free",
+              "quality_tier": "reference",
+              "offline": true,
+              "install_hint": "cli-it install demoapp",
+              "notes": "Reference harness; project new/open/save/info + session undo/redo."
+            }
+          ]
+        },
+        {
+          "id": "image.convert",
+          "intent": "Convert or resize an image/video frame between formats",
+          "inputs": ["source media path", "target format"],
+          "outputs": ["converted file"],
+          "skill_search_hints": ["convert image", "resize", "transcode"],
+          "providers": [
+            {
+              "kind": "public-cli",
+              "name": "ffmpeg",
+              "requires": {"binary": ["ffmpeg"]},
+              "cost_tier": "free",
+              "quality_tier": "high",
+              "offline": true,
+              "install_hint": "brew install ffmpeg"
+            },
+            {
+              "kind": "python",
+              "name": "pillow",
+              "requires": {"package": ["PIL"]},
+              "cost_tier": "free",
+              "quality_tier": "high",
+              "offline": true,
+              "install_hint": "pip install Pillow"
+            },
+            {
+              "kind": "native",
+              "name": "sips",
+              "requires": {"binary": ["sips"]},
+              "cost_tier": "free",
+              "quality_tier": "medium",
+              "offline": true,
+              "notes": "macOS built-in scriptable image processing."
+            }
+          ]
+        },
+        {
+          "id": "diagram.render",
+          "intent": "Render text-described diagrams (flowcharts, sequence) to SVG/PNG",
+          "inputs": ["mermaid source"],
+          "outputs": ["svg or png file"],
+          "skill_search_hints": ["diagram", "flowchart", "mermaid"],
+          "providers": [
+            {
+              "kind": "public-cli",
+              "name": "mermaid-cli",
+              "requires": {"binary": ["mmdc"]},
+              "cost_tier": "free",
+              "quality_tier": "high",
+              "offline": true,
+              "install_hint": "npm install -g @mermaid-js/mermaid-cli"
+            },
+            {
+              "kind": "agent-native",
+              "name": "inline-svg-authoring",
+              "requires": null,
+              "cost_tier": "free",
+              "quality_tier": "medium",
+              "offline": true,
+              "notes": "Agent writes SVG by hand when no renderer is available."
+            }
+          ]
+        },
+        {
+          "id": "image.generate",
+          "intent": "Generate a novel raster image from a text prompt",
+          "inputs": ["text prompt", "size"],
+          "outputs": ["png file"],
+          "skill_search_hints": ["generate image", "text to image"],
+          "providers": [
+            {
+              "kind": "api",
+              "name": "openai-images",
+              "requires": {"env": ["OPENAI_API_KEY"], "package": ["openai"]},
+              "cost_tier": "paid",
+              "quality_tier": "high",
+              "offline": false,
+              "install_hint": "pip install openai && export OPENAI_API_KEY=..."
+            },
+            {
+              "kind": "agent-skill",
+              "name": "cli-it-demoapp",
+              "requires": null,
+              "cost_tier": "free",
+              "quality_tier": "reference",
+              "offline": true,
+              "install_hint": "npx skills add elev8tion/cli-it --skill cli-it-demoapp -g -y",
+              "notes": "Skill-guided placeholder generation via the demoapp harness."
+            }
+          ]
+        }
+      ],
+      "recipes": [
+        {
+          "name": "diagram-to-png",
+          "description": "Author a mermaid diagram, render it, and convert/resize the output.",
+          "capabilities": ["diagram.render", "image.convert"]
+        },
+        {
+          "name": "design-project",
+          "description": "Scaffold a project and iterate with undo-safe mutations.",
+          "capabilities": ["project.scaffold"]
+        }
+      ],
+      "known_gaps": [
+        "No local text-to-image provider is bundled; image.generate needs an API key or an agent skill fallback."
+      ],
+      "suggest_to_user_template": "To unlock {capability} install: {install_hint}"
+    },
+    {
+      "name": "video-creation",
+      "display_name": "Video Creation",
+      "version": "0.1.0",
+      "schema_version": "2",
+      "description": "Assemble, transcode, and inspect video with real encoders.",
+      "category": "video",
+      "skill_md": "cli-it-matrix/video-creation/SKILL.md",
+      "clis": ["ffmpeg"],
+      "capabilities": [
+        {
+          "id": "video.transcode",
+          "intent": "Transcode/trim/concat video files",
+          "inputs": ["source video", "target codec/container"],
+          "outputs": ["encoded video"],
+          "providers": [
+            {"kind": "public-cli", "name": "ffmpeg", "requires": {"binary": ["ffmpeg"]}, "offline": true, "cost_tier": "free", "quality_tier": "high", "install_hint": "brew install ffmpeg"}
+          ]
+        },
+        {
+          "id": "video.inspect",
+          "intent": "Probe streams, duration, codecs as JSON",
+          "inputs": ["media path"],
+          "outputs": ["stream metadata JSON"],
+          "providers": [
+            {"kind": "public-cli", "name": "ffprobe", "requires": {"binary": ["ffprobe"]}, "offline": true, "cost_tier": "free", "quality_tier": "high", "install_hint": "brew install ffmpeg"}
+          ]
+        },
+        {
+          "id": "audio.tts",
+          "intent": "Synthesize narration audio from text",
+          "inputs": ["script text", "voice"],
+          "outputs": ["wav/mp3 file"],
+          "providers": [
+            {"kind": "api", "name": "elevenlabs", "requires": {"env": ["ELEVENLABS_API_KEY"]}, "offline": false, "cost_tier": "paid", "quality_tier": "high", "install_hint": "export ELEVENLABS_API_KEY=..."},
+            {"kind": "native", "name": "say", "requires": {"binary": ["say"]}, "offline": true, "cost_tier": "free", "quality_tier": "medium", "notes": "macOS built-in TTS."}
+          ]
+        }
+      ],
+      "recipes": [
+        {"name": "narrated-clip", "description": "TTS narration muxed over a transcoded clip.", "capabilities": ["audio.tts", "video.transcode"]}
+      ],
+      "known_gaps": ["No NLE harness in this recreation; see upstream for Shotcut/Kdenlive harnesses."]
+    },
+    {
+      "name": "3d-cad",
+      "display_name": "3D & CAD",
+      "version": "0.1.0",
+      "schema_version": "2",
+      "description": "Parametric modeling and mesh export patterns (harnesses not ported in this recreation).",
+      "category": "3d-cad",
+      "skill_md": "cli-it-matrix/3d-cad/SKILL.md",
+      "clis": [],
+      "capabilities": [
+        {
+          "id": "mesh.convert",
+          "intent": "Convert meshes between formats",
+          "inputs": ["mesh file"],
+          "outputs": ["converted mesh"],
+          "providers": [
+            {"kind": "python", "name": "trimesh", "requires": {"package": ["trimesh"]}, "offline": true, "cost_tier": "free", "quality_tier": "high", "install_hint": "pip install trimesh"}
+          ]
+        }
+      ],
+      "known_gaps": ["Blender/FreeCAD harnesses are out of scope for the core recreation; follow HARNESS.md to build them."]
+    },
+    {
+      "name": "game-development",
+      "display_name": "Game Development",
+      "version": "0.1.0",
+      "schema_version": "2",
+      "description": "Asset pipeline helpers for game projects.",
+      "category": "game-development",
+      "skill_md": "cli-it-matrix/game-development/SKILL.md",
+      "clis": [],
+      "capabilities": [
+        {
+          "id": "audio.sfx.convert",
+          "intent": "Convert/normalize sound effects",
+          "inputs": ["audio file"],
+          "outputs": ["converted audio"],
+          "providers": [
+            {"kind": "public-cli", "name": "ffmpeg", "requires": {"binary": ["ffmpeg"]}, "offline": true, "cost_tier": "free", "quality_tier": "high", "install_hint": "brew install ffmpeg"}
+          ]
+        }
+      ],
+      "known_gaps": ["Engine harnesses (Godot etc.) not ported; buildable via HARNESS.md."]
+    },
+    {
+      "name": "knowledge-research",
+      "display_name": "Knowledge & Research",
+      "version": "0.1.0",
+      "schema_version": "2",
+      "description": "Search, fetch, and structure knowledge for research workflows.",
+      "category": "knowledge-research",
+      "skill_md": "cli-it-matrix/knowledge-research/SKILL.md",
+      "clis": [],
+      "capabilities": [
+        {
+          "id": "web.search",
+          "intent": "Search the public web for sources",
+          "inputs": ["query"],
+          "outputs": ["ranked result list"],
+          "providers": [
+            {"kind": "web-search", "name": "agent-web-search", "requires": null, "offline": false, "cost_tier": "free", "quality_tier": "high", "notes": "Use the host agent's built-in web search tooling."}
+          ]
+        },
+        {
+          "id": "doc.fetch",
+          "intent": "Fetch and convert a web page or PDF to text",
+          "inputs": ["url"],
+          "outputs": ["plain text / markdown"],
+          "providers": [
+            {"kind": "public-cli", "name": "curl", "requires": {"binary": ["curl"]}, "offline": false, "cost_tier": "free", "quality_tier": "medium"},
+            {"kind": "python", "name": "requests", "requires": {"package": ["requests"]}, "offline": false, "cost_tier": "free", "quality_tier": "medium", "install_hint": "pip install requests"}
+          ]
+        }
+      ]
+    }
+  ]
+}

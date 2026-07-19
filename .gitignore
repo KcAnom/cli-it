@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+
+# Vendored matrix data (generated at build time)
+cli-it-hub/cli_it_hub/_matrix_data/
+
+# Node
+node_modules/
+
+# Jekyll
+docs/hub/_site/
+docs/hub/.jekyll-cache/
+
+# Local state / previews
+.cli-it/
+*.log
+
+# Local agent settings
+.claude/settings.local.json
+
+# OS
+.DS_Store

@@ -1,0 +1,19 @@
+{
+  "name": "cli-it",
+  "owner": {
+    "name": "The CLI-It Contributors",
+    "url": "https://github.com/elev8tion"
+  },
+  "metadata": {
+    "description": "CLI-It — make real software agent-native with generated stateful CLI harnesses.",
+    "version": "0.4.1"
+  },
+  "plugins": [
+    {
+      "name": "cli-it",
+      "source": "./cli-it-plugin",
+      "description": "7-phase harness generation methodology (/cli-it, :refine, :test, :validate, :list)",
+      "category": "development"
+    }
+  ]
+}

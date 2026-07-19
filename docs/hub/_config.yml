@@ -1,0 +1,15 @@
+title: CLI-It Hub
+description: >-
+  Agent-native stateful CLI interfaces for real software — registries, matrix
+  skills, and install docs for the cli-it package manager.
+url: "https://elev8tion.github.io"
+baseurl: "/cli-it"
+theme: minima
+markdown: kramdown
+include:
+  - llms.txt
+  - llms-full.txt
+  - openapi.json
+  - robots.txt
+exclude:
+  - vendor

@@ -1,0 +1,87 @@
+name: Deploy hub site to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/hub/**"
+      - "registry.json"
+      - "public_registry.json"
+      - "matrix_registry.json"
+      - "cli-it-matrix/**"
+      - "skills/**"
+      - ".github/workflows/deploy-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history for registry dates
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Copy registries into the site
+        run: |
+          cp registry.json public_registry.json matrix_registry.json docs/hub/
+
+      - name: Generate registry dates + meta skill
+        run: |
+          python .github/scripts/update_registry_dates.py
+          python .github/scripts/generate_meta_skill.py
+
+      - name: Publish matrix skill packs under /matrix/<name>/
+        run: |
+          mkdir -p docs/hub/matrix
+          rsync -a --exclude '__pycache__' cli-it-matrix/ docs/hub/matrix/
+
+      - name: Publish generated skills under /cli-it-skill/
+        run: |
+          mkdir -p docs/hub/cli-it-skill
+          rsync -a skills/ docs/hub/cli-it-skill/
+
+      - name: Build with Jekyll
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./docs/hub
+          destination: ./_site
+
+      - name: Optional catalog upload to DO Spaces
+        env:
+          DO_SPACES_KEY: ${{ secrets.DO_SPACES_KEY }}
+          DO_SPACES_SECRET: ${{ secrets.DO_SPACES_SECRET }}
+          DO_SPACES_BUCKET: ${{ secrets.DO_SPACES_BUCKET }}
+          DO_SPACES_ENDPOINT: ${{ secrets.DO_SPACES_ENDPOINT }}
+        run: |
+          if [ -z "$DO_SPACES_KEY" ]; then
+            echo "DO_SPACES_* secrets unset — skipping catalog upload"
+            exit 0
+          fi
+          pip install --quiet awscli
+          aws s3 sync docs/hub/cli-it-skill "s3://$DO_SPACES_BUCKET/cli-it-skill" \
+            --endpoint-url "$DO_SPACES_ENDPOINT"
+
+      - uses: actions/upload-pages-artifact@v3
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

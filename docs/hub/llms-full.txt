@@ -1,0 +1,75 @@
+# CLI-It Hub — full agent reference
+
+CLI-It = agent-native stateful CLI interfaces for real software.
+Repo: https://github.com/elev8tion/cli-it · License: Apache-2.0
+Hub package: cli-it-hub (PyPI) · console command: cli-it · Python >= 3.10
+Telemetry off: CLI_HUB_NO_ANALYTICS=1 · Registry base override: CLI_HUB_REGISTRY_BASE_URL
+
+## Full CLI surface
+
+cli-it [--version]                       root without subcommand prints help
+cli-it list [-c category] [-s harness|public|npm|all] [--json]
+cli-it search <query> [--json]
+cli-it info <name>                       full registry entry as JSON
+cli-it install <name>                    runs the registry install_cmd (pip→python -m pip / uv, npm -g, brew, generic)
+cli-it uninstall <name>
+cli-it update <name>
+cli-it launch <name> [args...]           resolves entry_point on PATH
+cli-it can <query> [--json]              intent → capabilities → providers with ready/install-hint
+cli-it previews inspect <ref>            bundle or live session → structured JSON
+cli-it previews html <ref> [-o file]
+cli-it previews watch <ref> [--poll n] [--no-browser]
+cli-it previews open <ref> [--no-browser]
+cli-it matrix list [--json]
+cli-it matrix search <query> [--json]
+cli-it matrix info <name>
+cli-it matrix preflight <name> [-c capability] [--offline] [--json]
+cli-it matrix install <name> [-c cap] [-r recipe] [--only provider]... [--dry-run] [--resume] [--json]
+cli-it matrix doctor <name> [--json]
+cli-it matrix recipes [--json]
+cli-it matrix skill <name>               render SKILL.md + assets to ~/.cli-it-hub/matrix/<name>/
+
+Exit codes: 0 success · 1 failure/not found · 2 usage error · 3 capability
+gaps / partial (matrix family; agents should continue with ready providers).
+
+## Registry entry schema (registry.json / public_registry.json)
+
+{ name, display_name, version, description, requires, homepage, source_url,
+  install_cmd, entry_point, skill_md, category, contributors[{name,url}] }
+public entries may add: package_manager (pip|npm|brew|bundled), npm_package, npx_cmd
+
+## Matrix schema (matrix_registry.json, schema_version "2")
+
+matrix: { name, display_name, version, schema_version, description, category,
+          clis[], capabilities[], recipes[]?, known_gaps?, skill_md?,
+          suggest_to_user_template? }
+capability: { id, intent, inputs[], outputs[], skill_search_hints[]?, providers[] }
+provider: { kind, name, requires, cost_tier?, quality_tier?, offline?,
+            install_hint?, notes? }
+provider.requires: null | { binary[]?, package[]?, env[]? }
+provider kinds: harness-cli, public-cli, python, native, api, agent-skill,
+                agent-native, web-search, bundled-script
+
+## Preview protocol (preview-bundle/v1, preview-trajectory/v1)
+
+Bundle dir: manifest.json + summary.json + artifacts/. Live session:
+session.json + append-only trajectory.json. Producers = harness CLIs (render
+with the real app, headless). Consumer = cli-it previews (read-only).
+Full spec: docs/PREVIEW_PROTOCOL.md in the repo.
+
+## Local state
+
+~/.cli-it/            registry caches, previews/
+~/.cli-it-hub/        installed.json, matrix_state.json, matrix caches, rendered matrix skills
+<project>/.cli-it/    project-local previews
+
+## Building harnesses (methodology)
+
+cli-it-plugin/HARNESS.md defines 7 phases: 0 source acquisition (path/URL
+only) · 1 codebase analysis · 2 CLI architecture · 3 implementation (backend
+boundary in utils/<sw>_backend.py, session file locking, ReplSkin REPL) ·
+4 TEST.md plan · 5 tests (unit no-backend + e2e skip-if-missing) · 6 results
+appended · 6.5 SKILL.md via skill_generator.py (dual-write) · 7 packaging
+(PEP 420 namespace cli_it.<software>, entry point cli-it-<software>).
+Agent commands: /cli-it, /cli-it:refine, /cli-it:test, /cli-it:validate,
+/cli-it:list (Claude Code, Pi, Codex, Hermes, Reasonix, OpenCode adapters).

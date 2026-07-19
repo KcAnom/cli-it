@@ -1,0 +1,62 @@
+name: Publish cli-it-hub to PyPI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cli-it-hub/**"
+      - "cli-it-matrix/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # PyPI trusted publishing
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build tooling
+        run: python -m pip install --upgrade pip build requests
+
+      - name: Run hub tests
+        env:
+          CLI_HUB_NO_ANALYTICS: "1"
+        run: |
+          pip install -e ./cli-it-hub pytest
+          pytest -q cli-it-hub/tests
+
+      - name: Check whether this version already exists on PyPI
+        id: version_check
+        run: |
+          VERSION=$(python -c "import re,pathlib; print(re.search(r'__version__ = \"([^\"]+)\"', pathlib.Path('cli-it-hub/cli_it_hub/__init__.py').read_text()).group(1))")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          EXISTS=$(python -c "
+          import requests
+          resp = requests.get('https://pypi.org/pypi/cli-it-hub/json', timeout=15)
+          releases = resp.json().get('releases', {}) if resp.ok else {}
+          print('true' if '$VERSION' in releases else 'false')
+          " || echo "false")
+          echo "exists=$EXISTS" >> "$GITHUB_OUTPUT"
+
+      - name: Build sdist + wheel (vendors cli-it-matrix)
+        if: steps.version_check.outputs.exists == 'false'
+        working-directory: cli-it-hub
+        run: python -m build
+
+      - name: Publish to PyPI (trusted publishing)
+        if: steps.version_check.outputs.exists == 'false'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: cli-it-hub/dist
+
+      - name: Skip note
+        if: steps.version_check.outputs.exists == 'true'
+        run: echo "cli-it-hub ${{ steps.version_check.outputs.version }} already on PyPI — skipping publish"
