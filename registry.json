@@ -1,6 +1,6 @@
 {
   "meta": {
-    "repo": "https://github.com/elev8tion/cli-it",
+    "repo": "https://github.com/KcAnom/cli-it",
     "description": "CLI-It Hub \u2014 Agent-native stateful CLI interfaces for real software. Harness registry consumed by the `cli-it` package manager.",
     "updated": "2026-07-19"
   },
@@ -11,9 +11,9 @@
       "version": "0.1.0",
       "description": "Exemplar CLI-It harness: JSON project files, locked sessions, undo/redo, real-process export \u2014 the reference implementation of the harness pattern.",
       "requires": null,
-      "homepage": "https://github.com/elev8tion/cli-it/tree/main/demoapp",
+      "homepage": "https://github.com/KcAnom/cli-it/tree/main/demoapp",
       "source_url": null,
-      "install_cmd": "pip install \"git+https://github.com/elev8tion/cli-it.git#subdirectory=demoapp/agent-harness\"",
+      "install_cmd": "pip install \"git+https://github.com/KcAnom/cli-it.git#subdirectory=demoapp/agent-harness\"",
       "entry_point": "cli-it-demoapp",
       "skill_md": "skills/cli-it-demoapp/SKILL.md",
       "category": "demo",

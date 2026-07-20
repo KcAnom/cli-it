@@ -48,7 +48,7 @@ cli-it-demoapp                  # stateful REPL
 **Claude Code** (marketplace at repo root):
 
 ```text
-/plugin marketplace add elev8tion/cli-it
+/plugin marketplace add KcAnom/cli-it
 /plugin install cli-it
 ```
 

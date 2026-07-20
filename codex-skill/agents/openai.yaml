@@ -2,5 +2,5 @@ name: cli-it
 description: Build agent-native CLI harnesses for real software (CLI-It methodology)
 instructions_file: ../SKILL.md
 metadata:
-  homepage: https://github.com/elev8tion/cli-it
+  homepage: https://github.com/KcAnom/cli-it
   license: Apache-2.0

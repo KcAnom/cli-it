@@ -1,6 +1,6 @@
 {
   "meta": {
-    "repo": "https://github.com/elev8tion/cli-it",
+    "repo": "https://github.com/KcAnom/cli-it",
     "description": "CLI-It public registry — existing agent-friendly public CLIs that the hub can list and install alongside CLI-It harnesses.",
     "updated": "2026-07-19"
   },

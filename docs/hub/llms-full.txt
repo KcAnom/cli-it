@@ -1,7 +1,7 @@
 # CLI-It Hub — full agent reference
 
 CLI-It = agent-native stateful CLI interfaces for real software.
-Repo: https://github.com/elev8tion/cli-it · License: Apache-2.0
+Repo: https://github.com/KcAnom/cli-it · License: Apache-2.0
 Hub package: cli-it-hub (PyPI) · console command: cli-it · Python >= 3.10
 Telemetry off: CLI_HUB_NO_ANALYTICS=1 · Registry base override: CLI_HUB_REGISTRY_BASE_URL
 

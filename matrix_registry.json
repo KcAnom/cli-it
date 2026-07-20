@@ -1,6 +1,6 @@
 {
   "meta": {
-    "repo": "https://github.com/elev8tion/cli-it",
+    "repo": "https://github.com/KcAnom/cli-it",
     "description": "Curated CLI Matrix registry — capability-first tool matrices that agents preflight and install through the cli-it hub.",
     "updated": "2026-07-19",
     "schema_doc": "docs/cli-matrix/matrix_registry.schema.md"
@@ -121,7 +121,7 @@
               "cost_tier": "free",
               "quality_tier": "reference",
               "offline": true,
-              "install_hint": "npx skills add elev8tion/cli-it --skill cli-it-demoapp -g -y",
+              "install_hint": "npx skills add KcAnom/cli-it --skill cli-it-demoapp -g -y",
               "notes": "Skill-guided placeholder generation via the demoapp harness."
             }
           ]

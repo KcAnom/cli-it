@@ -42,9 +42,9 @@ cli-it matrix preflight image-design --json   # exit 3 = gaps
 ## Build your own harness
 
 Install the plugin from the
-[CLI-It repository](https://github.com/elev8tion/cli-it) and run
+[CLI-It repository](https://github.com/KcAnom/cli-it) and run
 `/cli-it <path-or-url>` in your agent. The 7-phase methodology lives in
-[`cli-it-plugin/HARNESS.md`](https://github.com/elev8tion/cli-it/blob/main/cli-it-plugin/HARNESS.md).
+[`cli-it-plugin/HARNESS.md`](https://github.com/KcAnom/cli-it/blob/main/cli-it-plugin/HARNESS.md).
 
 ## Pricing
 

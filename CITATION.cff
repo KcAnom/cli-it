@@ -4,7 +4,7 @@ title: "CLI-It: Agent-native stateful CLI interfaces for real software"
 type: software
 authors:
   - name: "The CLI-It Contributors"
-repository-code: "https://github.com/elev8tion/cli-it"
+repository-code: "https://github.com/KcAnom/cli-it"
 url: "https://elev8tion.github.io/cli-it"
 license: Apache-2.0
 version: 0.4.1

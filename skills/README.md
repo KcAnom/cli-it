@@ -14,6 +14,6 @@ CLI-It skill:
 Install into an agent:
 
 ```bash
-npx skills add elev8tion/cli-it --skill cli-it-meta-skill -g -y
-npx skills add elev8tion/cli-it --skill cli-it-demoapp -g -y
+npx skills add KcAnom/cli-it --skill cli-it-meta-skill -g -y
+npx skills add KcAnom/cli-it --skill cli-it-demoapp -g -y
 ```

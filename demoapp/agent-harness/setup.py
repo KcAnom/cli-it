@@ -12,7 +12,7 @@ setup(
         encoding="utf-8"
     ),
     long_description_content_type="text/markdown",
-    url="https://github.com/elev8tion/cli-it",
+    url="https://github.com/KcAnom/cli-it",
     license="Apache-2.0",
     python_requires=">=3.10",
     packages=find_namespace_packages(include=["cli_it.*"]),

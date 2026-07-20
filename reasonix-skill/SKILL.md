@@ -8,7 +8,7 @@ description: Build agent-native CLI harnesses for real software with the CLI-It 
 Same contract as every CLI-It adapter — this file is intentionally thin:
 
 - **Methodology**: read and follow `cli-it-plugin/HARNESS.md` from
-  https://github.com/elev8tion/cli-it (clone if absent). Phases 0–7, in
+  https://github.com/KcAnom/cli-it (clone if absent). Phases 0–7, in
   order, no skipping the analysis or TEST.md-before-tests steps.
 - **Input**: local path or GitHub URL only.
 - **Workflow commands**: `cli-it-plugin/commands/{cli-it,refine,test,validate,list}.md`

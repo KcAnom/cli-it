@@ -8,7 +8,7 @@ description: Build agent-native CLI harnesses for real software using the CLI-It
 To build a harness, follow the CLI-It methodology exactly:
 
 1. Read `cli-it-plugin/HARNESS.md` in the CLI-It repo (clone
-   `https://github.com/elev8tion/cli-it` if not present) — it is the source
+   `https://github.com/KcAnom/cli-it` if not present) — it is the source
    of truth.
 2. Require a **local path or GitHub URL** for the target software; reject
    bare names.

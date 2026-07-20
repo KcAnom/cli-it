@@ -56,7 +56,7 @@ setup(
     ),
     long_description=(HERE / "README.md").read_text(encoding="utf-8"),
     long_description_content_type="text/markdown",
-    url="https://github.com/elev8tion/cli-it",
+    url="https://github.com/KcAnom/cli-it",
     license="Apache-2.0",
     python_requires=">=3.10",
     packages=["cli_it_hub"],

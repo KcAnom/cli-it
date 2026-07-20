@@ -26,7 +26,7 @@ does the work, using the Python helpers in this directory.
 Claude Code:
 
 ```text
-/plugin marketplace add elev8tion/cli-it
+/plugin marketplace add KcAnom/cli-it
 /plugin install cli-it
 ```
 

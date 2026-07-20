@@ -28,7 +28,7 @@ Disable telemetry: `export CLI_HUB_NO_ANALYTICS=1`.
 
 ## Build a harness
 
-Follow cli-it-plugin/HARNESS.md in https://github.com/elev8tion/cli-it
+Follow cli-it-plugin/HARNESS.md in https://github.com/KcAnom/cli-it
 (7 phases: analyze → design → implement → test-plan → test → document →
 generate SKILL.md → package as PEP 420 namespace cli_it.<software>, entry
 point cli-it-<software>).

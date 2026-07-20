@@ -30,7 +30,7 @@ For in-repo harnesses you can skip PyPI: the registry `install_cmd` may point
 at the monorepo subdirectory:
 
 ```text
-pip install "git+https://github.com/elev8tion/cli-it.git#subdirectory=<software>/agent-harness"
+pip install "git+https://github.com/KcAnom/cli-it.git#subdirectory=<software>/agent-harness"
 ```
 
 ## 4. Registry entry

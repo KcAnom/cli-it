@@ -4,7 +4,7 @@ This walkthrough builds a harness for a hypothetical app in ~30 agent-minutes.
 
 ## 1. Install the plugin
 
-Claude Code: `/plugin marketplace add elev8tion/cli-it` → `/plugin install cli-it`.
+Claude Code: `/plugin marketplace add KcAnom/cli-it` → `/plugin install cli-it`.
 Pi: `bash .pi-extension/cli-it/install.sh` from the repo root.
 
 ## 2. Point the agent at real software
