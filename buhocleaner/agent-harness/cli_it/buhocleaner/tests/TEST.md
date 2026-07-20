@@ -65,6 +65,23 @@ Written before any test code (HARNESS.md phase 4).
 Edge cases folded in: malformed plan JSON (U4), locked-session integrity
 (U13), missing scan roots (U11), missing bundle (U24).
 
+## v0.2.0 additions — GUI-driven clean (planned before test code)
+
+Unit (backend mocked; no GUI, no deletions):
+
+| # | Case | Expect |
+|---|------|--------|
+| U29 | `clean run` without `--confirm` never passes confirm=True | backend mock sees confirm=False; output says "re-run with --confirm" |
+| U30 | `clean run --confirm -p` records result; undo restores metadata | plan.metadata last_clean set, undo reverts to previous value |
+| U31 | `clean scan` reports found junk from mocked backend | exit 0, size string in output |
+| U32 | `parse_snapshot` pure parser | buttons/texts split, "Found Junk 41.72 GB" → found_junk |
+| U33 | `ui_click` rejects quote/backslash in names | BackendError |
+| U34 | `clean status` with app not running (mocked) | non-zero, "not running" |
+
+E2E: GUI cases are **opt-in only** via `BUHO_E2E_GUI=1` (E8: `clean status`
+against the live window). Default runs never script the GUI and never press
+Remove.
+
 ## Results (2026-07-20, Phase 6)
 
 Environment: macOS (Darwin 25.2.0), Python 3.13.12 venv, BuhoCleaner 1.16.2
@@ -83,3 +100,18 @@ $ python -m pytest
   by design where the app is absent.
 - Note: Homebrew Python 3.14 on this machine is broken (pyexpat dlopen
   failure); the suite was run under Python 3.13.
+
+## Results v0.2.0 (2026-07-20, GUI-driven clean)
+
+```
+$ python -m pytest
+41 passed, 1 skipped in 2.00s        # skip = E8, opt-in GUI case
+$ BUHO_E2E_GUI=1 pytest ...::test_clean_status_live_window
+1 passed in 1.62s                    # against the live window
+```
+
+Live manual verification: `clean scan` drove the real Flash Clean view via
+accessibility scripting and reported `found_junk: 41.72 GB` with the Remove
+button present — nothing was deleted (`removed: false`). `clean run
+--confirm` (the destructive path) was intentionally NOT exercised by the
+test suite; its gating logic is covered by U29/U30 with a mocked backend.

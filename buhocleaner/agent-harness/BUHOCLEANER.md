@@ -139,6 +139,24 @@ subcommand; root `--json` flag.
 - `prefs show`: `{"domain", "keys": {...}}`; errors: non-zero exit, message on
   stderr via ClickException.
 
+### GUI-driven clean (v0.2.0)
+
+Because the engine is GUI-only, `clean scan|run` drive the real window via
+System Events **accessibility scripting** (requires the host terminal to have
+Accessibility + Automation permission; readable error with a hint otherwise).
+Verified element inventory (1.16.2, English UI): sidebar rows are static
+texts (`Flash Clean`, `App Uninstall`, `Large Files`, …), scan results render
+as `Found Junk <size>` with a `Remove` button; clicking any element works via
+`click` on the matched node from `entire contents of window 1`.
+
+Flow in `flash_clean()`: activate → click "Flash Clean" → press "Scan" if no
+results yet → poll until `Remove`/`Found Junk` appears → report. Only with
+`confirm=True` (CLI `--confirm`) does it press `Remove` (plus one affirmative
+sheet button if a confirmation appears) and wait for completion. Element
+names are injected into AppleScript with quote/backslash rejection. The
+destructive path is double-gated: `confirm=True` at the backend AND
+`--confirm` on the CLI; test suites never press Remove.
+
 ### REPL & preview
 
 REPL identical to demoapp (`ReplSkin`, copied verbatim; `buhocleaner>`

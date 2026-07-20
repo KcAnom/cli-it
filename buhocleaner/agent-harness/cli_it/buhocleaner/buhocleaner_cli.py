@@ -422,6 +422,65 @@ def clean_open(ctx: click.Context, plan_path: Path, sync: bool) -> None:
     )
 
 
+@clean.command("status")
+@click.pass_context
+def clean_status(ctx: click.Context) -> None:
+    """Read the live BuhoCleaner window (buttons, found-junk summary)."""
+    snap = _backend_call(_backend.ui_snapshot)
+    human = [f"found_junk: {snap['found_junk'] or '(no scan visible)'}"]
+    human.append("buttons: " + (", ".join(snap["buttons"]) or "(none)"))
+    _emit(ctx, snap, human)
+
+
+@clean.command("scan")
+@click.pass_context
+def clean_scan(ctx: click.Context) -> None:
+    """Drive a Flash Clean scan in the real app and report found junk.
+
+    Non-destructive: never presses Remove.
+    """
+    result = _backend_call(_backend.flash_clean, confirm=False)
+    _emit(
+        ctx,
+        result,
+        [f"found junk: {result['found_junk'] or 'unknown — check the app window'}"],
+    )
+
+
+@clean.command("run")
+@click.option("--confirm", is_flag=True,
+              help="Actually press Remove. Without this flag only a scan runs.")
+@click.option("-p", "--plan", "plan_path", default=None,
+              type=click.Path(path_type=Path),
+              help="Optional plan file to record the outcome in (journaled).")
+@click.pass_context
+def clean_run(ctx: click.Context, confirm: bool, plan_path: Path | None) -> None:
+    """Run Flash Clean in the real app via GUI automation.
+
+    DESTRUCTIVE with --confirm: BuhoCleaner deletes the files selected in
+    its window. Without --confirm this scans and reports, then stops.
+    """
+    result = _backend_call(_backend.flash_clean, confirm=confirm)
+    if plan_path is not None:
+        plan = _load(plan_path)
+        action = {
+            "op": "clean.result",
+            "before": plan.metadata.get("last_clean"),
+            "after": result,
+        }
+        _plan.apply_action(plan, action)
+        _plan.save_plan(plan, plan_path)
+        _session.record_action(plan_path, action)
+    if result["removed"]:
+        human = [f"cleaned: removed {result['found_junk'] or 'selected junk'} via BuhoCleaner"]
+    else:
+        human = [
+            f"scan only: found {result['found_junk'] or 'unknown'} — "
+            "re-run with --confirm to remove",
+        ]
+    _emit(ctx, result, human)
+
+
 @cli.group()
 def uninstall() -> None:
     """Hand an app bundle to BuhoCleaner's uninstaller."""
@@ -578,6 +637,7 @@ _REPL_COMMANDS = {
     "category list|enable|disable|threshold|root": "undoable plan mutations",
     "scan run|report": "read-only size probes",
     "prefs show|set|sync": "live app defaults domain",
+    "clean status|scan|run [--confirm]": "GUI-driven clean (destructive w/ --confirm)",
     "clean open / uninstall open": "hand off to the real BuhoCleaner",
     "session status|undo|redo": "journal control",
     "preview capture|recipes|latest": "produce preview bundles",

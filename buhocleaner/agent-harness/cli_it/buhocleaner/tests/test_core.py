@@ -304,3 +304,63 @@ def test_write_pref_whitelist():  # U27
 def test_open_uninstaller_rejects_non_app(tmp_path):  # U28
     with pytest.raises(_backend.BackendError):
         _backend.open_uninstaller(tmp_path / "not-an-app.txt")
+
+
+# --- GUI-driven clean (v0.2.0, backend mocked) --------------------------------
+
+
+def test_clean_run_without_confirm(runner, monkeypatch):  # U29
+    calls = {}
+    monkeypatch.setattr(
+        _backend,
+        "flash_clean",
+        lambda confirm=False, **kw: calls.setdefault("confirm", confirm)
+        or {"found_junk": "1.2 GB", "buttons": ["Remove"], "removed": False},
+    )
+    result = runner.invoke(cli, ["clean", "run"])
+    assert result.exit_code == 0, result.output
+    assert calls["confirm"] is False
+    assert "--confirm" in result.output
+
+
+def test_clean_run_confirm_records_and_undoes(runner, plan_file, monkeypatch):  # U30
+    outcome = {"found_junk": "2.5 GB", "buttons": [], "removed": True}
+    monkeypatch.setattr(_backend, "flash_clean", lambda confirm=False, **kw: outcome)
+    result = runner.invoke(cli, ["clean", "run", "--confirm", "-p", str(plan_file)])
+    assert result.exit_code == 0, result.output
+    assert _plan.load_plan(plan_file).metadata["last_clean"] == outcome
+    result = runner.invoke(cli, ["session", "undo", "-p", str(plan_file)])
+    assert result.exit_code == 0, result.output
+    assert _plan.load_plan(plan_file).metadata["last_clean"] is None
+
+
+def test_clean_scan_reports(runner, monkeypatch):  # U31
+    monkeypatch.setattr(
+        _backend,
+        "flash_clean",
+        lambda confirm=False, **kw: {"found_junk": "41.72 GB", "buttons": [], "removed": False},
+    )
+    result = runner.invoke(cli, ["clean", "scan"])
+    assert result.exit_code == 0, result.output
+    assert "41.72 GB" in result.output
+
+
+def test_parse_snapshot():  # U32
+    raw = "button|Remove\nstatic text|Found Junk 41.72 GB\nstatic text|Flash Clean\ncheckbox|User Cache Files\nbad line\n"
+    snap = _backend.parse_snapshot(raw)
+    assert snap["buttons"] == ["Remove"]
+    assert "Flash Clean" in snap["texts"]
+    assert snap["found_junk"] == "41.72 GB"
+
+
+def test_ui_click_rejects_quotes():  # U33
+    with pytest.raises(_backend.BackendError):
+        _backend.ui_click('evil" & quit & "')
+
+
+def test_clean_status_not_running(runner, monkeypatch):  # U34
+    monkeypatch.setattr(_backend, "backend_available", lambda: True)
+    monkeypatch.setattr(_backend, "is_running", lambda: False)
+    result = runner.invoke(cli, ["clean", "status"])
+    assert result.exit_code != 0
+    assert "not running" in result.output

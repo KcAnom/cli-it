@@ -10,8 +10,11 @@ engine is a code-sign-gated privileged XPC helper. This harness therefore:
 - **plans**: a JSON cleanup-plan project with journaled, undoable mutations;
 - **controls** the real app: launch/quit, Flash Clean category toggles via its
   `defaults` domain, Sparkle update check, uninstaller hand-off;
-- **defers** all destruction to the real BuhoCleaner GUI, where a human
-  confirms.
+- **cleans, when told to twice**: `clean run --confirm` drives the real app's
+  Flash Clean via accessibility scripting (scan → Remove). Without
+  `--confirm` it only scans and reports; the harness itself never deletes a
+  file — every removal is performed by BuhoCleaner. Requires Accessibility +
+  Automation permission for your terminal.
 
 ## Quick start
 

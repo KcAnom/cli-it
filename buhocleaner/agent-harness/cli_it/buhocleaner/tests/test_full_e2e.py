@@ -8,6 +8,7 @@ domain.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -40,7 +41,7 @@ def test_help_lists_groups():  # E1
 def test_version():  # E2
     result = run_cli("--version")
     assert result.returncode == 0
-    assert "0.1.0" in result.stdout
+    assert "0.2.0" in result.stdout
 
 
 def test_plan_scan_report_flow(tmp_path):  # E3
@@ -106,3 +107,16 @@ def test_prefs_show_real_domain():  # E6
 def test_unknown_command_usage_error():  # E7
     result = run_cli("frobnicate")
     assert result.returncode == 2
+
+
+@pytest.mark.skipif(
+    os.environ.get("BUHO_E2E_GUI") != "1",
+    reason="GUI accessibility e2e is opt-in (set BUHO_E2E_GUI=1)",
+)
+@needs_app
+def test_clean_status_live_window():  # E8 — reads the window, clicks nothing
+    result = run_cli("--json", "clean", "status")
+    assert result.returncode == 0, result.stderr
+    doc = json.loads(result.stdout)
+    assert isinstance(doc["buttons"], list)
+    assert isinstance(doc["texts"], list)

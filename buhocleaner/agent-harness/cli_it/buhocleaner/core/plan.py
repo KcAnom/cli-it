@@ -179,6 +179,10 @@ def apply_action(plan: Plan, action: dict, invert: bool = False) -> Plan:
         plan.threshold_mb = int(after)
     elif op == "scan.run":
         plan.last_scan = after
+    elif op == "clean.result":
+        # Records the GUI clean outcome in metadata. Undo restores only the
+        # recorded value — deleted files are gone regardless.
+        plan.metadata["last_clean"] = after
     else:
         raise PlanError(f"unknown action op: {op!r}")
     return plan

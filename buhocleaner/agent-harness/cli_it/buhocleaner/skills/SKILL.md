@@ -1,7 +1,7 @@
 ---
 name: cli-it-buhocleaner
 description: Agent-native, stateful CLI harness for the real BuhoCleaner macOS app: read-only cleanup scans, undoable cleanup plans, live preference control, and safe hand-off to the app for actual cleaning.
-version: 0.1.0
+version: 0.2.0
 license: Apache-2.0
 ---
 
@@ -41,6 +41,9 @@ cli-it-buhocleaner --help
 | `prefs` | `set` | Write one whitelisted toggle key (journaled; undo restores it). |
 | `prefs` | `sync` | Push the plan's category toggles into the app's defaults (journaled). |
 | `clean` | `open` | Optionally sync prefs from the plan, then launch BuhoCleaner. |
+| `clean` | `status` | Read the live BuhoCleaner window (buttons, found-junk summary). |
+| `clean` | `scan` | Drive a Flash Clean scan in the real app and report found junk. |
+| `clean` | `run` | Run Flash Clean in the real app via GUI automation. |
 | `uninstall` | `open` | Open APP_PATH in BuhoCleaner's uninstaller (human confirms there). |
 | `session` | `status` | Show undo/redo depths and session file location. |
 | `session` | `undo` | Undo the most recent journaled mutation. |
