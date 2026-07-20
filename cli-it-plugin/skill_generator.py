@@ -82,8 +82,9 @@ def _find_software_dir(harness_path: Path) -> Path:
 def _docstring_after(lines: list[str], start: int) -> str:
     """First line of the docstring following a `def` at lines[start]."""
     window = "\n".join(lines[start : start + 12])
-    body = window.partition("):")[2] or window
-    match = _DOCSTRING_RE.search(body)
+    # A def signature can span lines but never contains a triple-quoted
+    # string, so the first docstring in the window is the right one.
+    match = _DOCSTRING_RE.search(window)
     if not match:
         return ""
     return match.group(1).strip().splitlines()[0].strip() if match.group(1).strip() else ""

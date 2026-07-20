@@ -14,7 +14,7 @@ starts an interactive REPL; every command also works non-interactively.
 ## Installation
 
 ```bash
-pip install -e /Users/kc/cli-it/demoapp/agent-harness
+pip install -e /Users/kcdacre8tor/.claude/plugins/marketplaces/cli-it/demoapp/agent-harness
 cli-it-demoapp --help
 ```
 
@@ -22,7 +22,7 @@ cli-it-demoapp --help
 
 | Group | Command | Description |
 |-------|---------|-------------|
-| `project` | `new` |  |
+| `project` | `new` | Create a new project file. |
 | `project` | `open` | Validate a project and ensure its session exists. |
 | `project` | `info` | Show project details. |
 | `project` | `save` | Re-save a project canonically (validates + normalizes formatting). |
@@ -36,7 +36,7 @@ cli-it-demoapp --help
 | `root` | `backend` | Probe the DemoApp engine backend. |
 | `preview` | `recipes` | List available preview recipes. |
 | `preview` | `capture` | Render the project into a preview bundle and print its path. |
-| `preview` | `latest` |  |
+| `preview` | `latest` | Print the newest bundle path for a recipe. |
 
 ## Examples
 
@@ -46,7 +46,7 @@ cli-it-demoapp --help
 cli-it-demoapp --help
 ```
 
-**new**
+**Create a new project file.**
 
 ```bash
 cli-it-demoapp project new

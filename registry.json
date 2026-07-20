@@ -23,6 +23,25 @@
           "url": "https://github.com/elev8tion"
         }
       ]
+    },
+    {
+      "name": "buhocleaner",
+      "display_name": "BuhoCleaner",
+      "version": "0.1.0",
+      "description": "Harness for the BuhoCleaner macOS app: read-only cleanup scans, undoable cleanup plans, live preference toggles, Sparkle update check, and safe hand-off to the real app for actual cleaning (the harness never deletes files).",
+      "requires": "macOS with BuhoCleaner installed (probe/plan commands work without it)",
+      "homepage": "https://www.drbuho.com/buhocleaner",
+      "source_url": null,
+      "install_cmd": "pip install \"git+https://github.com/elev8tion/cli-it.git#subdirectory=buhocleaner/agent-harness\"",
+      "entry_point": "cli-it-buhocleaner",
+      "skill_md": "skills/cli-it-buhocleaner/SKILL.md",
+      "category": "system-utilities",
+      "contributors": [
+        {
+          "name": "CLI-It Team",
+          "url": "https://github.com/elev8tion"
+        }
+      ]
     }
   ]
 }
