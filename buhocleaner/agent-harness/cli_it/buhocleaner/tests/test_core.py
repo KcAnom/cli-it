@@ -364,3 +364,71 @@ def test_clean_status_not_running(runner, monkeypatch):  # U34
     result = runner.invoke(cli, ["clean", "status"])
     assert result.exit_code != 0
     assert "not running" in result.output
+
+
+# --- appcast parsing (U35–U40) ------------------------------------------------
+
+APPCAST = """<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+  <channel>
+    <title>BuhoCleaner</title>
+    <item>
+      <title>Version 1.13.0</title>
+      <enclosure url="https://example.invalid/BuhoCleaner-1.13.0.zip"
+                 sparkle:shortVersionString="1.13.0" sparkle:version="1130"/>
+    </item>
+    <item>
+      <title>Version 1.12.0</title>
+      <enclosure url="https://example.invalid/BuhoCleaner-1.12.0.zip"
+                 sparkle:shortVersionString="1.12.0" sparkle:version="1120"/>
+    </item>
+  </channel>
+</rss>
+"""
+
+
+def test_parse_appcast_reads_the_newest_item():  # U35
+    parsed = _backend.parse_appcast(APPCAST)
+    assert parsed["latest"] == "1.13.0"
+    assert parsed["latest_build"] == "1130"
+    assert parsed["title"] == "Version 1.13.0"
+
+
+def test_parse_appcast_ignores_versions_in_prose():  # U36
+    """The regex this replaced matched any occurrence anywhere in the markup."""
+    noisy = APPCAST.replace(
+        "<title>BuhoCleaner</title>",
+        '<description>Upgrade notes: sparkle:shortVersionString="9.9.9" was '
+        "used in older builds.</description>",
+    )
+    assert _backend.parse_appcast(noisy)["latest"] == "1.13.0"
+
+
+def test_parse_appcast_version_on_the_item_itself():  # U37
+    on_item = """<?xml version="1.0"?>
+    <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+      <channel><item sparkle:shortVersionString="2.0.1"><title>t</title></item></channel>
+    </rss>"""
+    assert _backend.parse_appcast(on_item)["latest"] == "2.0.1"
+
+
+def test_parse_appcast_rejects_non_xml():  # U38
+    with pytest.raises(_backend.BackendError, match="not valid XML"):
+        _backend.parse_appcast("<<< not xml")
+
+
+def test_parse_appcast_without_versions():  # U39
+    empty = '<?xml version="1.0"?><rss><channel><item><title>t</title></item></channel></rss>'
+    with pytest.raises(_backend.BackendError, match="no version found"):
+        _backend.parse_appcast(empty)
+
+
+def test_parse_appcast_rejects_well_formed_html_error_page():  # U41
+    """An HTML error page parses as valid XML, so it must be caught here."""
+    with pytest.raises(_backend.BackendError, match="no version found"):
+        _backend.parse_appcast("<html><body>503 Service Unavailable</body></html>")
+
+
+def test_parse_appcast_refuses_oversized_input():  # U40
+    with pytest.raises(_backend.BackendError, match="larger than"):
+        _backend.parse_appcast("<rss/>" + "x" * (_backend.APPCAST_MAX_BYTES + 1))

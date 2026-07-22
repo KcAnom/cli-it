@@ -162,20 +162,80 @@ def write_pref(key: str, value, value_type: str = "bool") -> None:
 # --- update check ------------------------------------------------------------
 
 
+SPARKLE_NS = "http://www.andymatuschak.org/xml-namespaces/sparkle"
+
+#: Refuse to parse an appcast larger than this. The feed is a few KB of RSS;
+#: anything vastly bigger is either not an appcast or an attempt to make the XML
+#: parser do too much work.
+APPCAST_MAX_BYTES = 2 * 1024 * 1024
+
+
+def parse_appcast(xml_text: str) -> dict:
+    """Extract the newest published version from a Sparkle appcast (pure).
+
+    Parsed as XML rather than pattern-matched. A regex over markup finds a
+    string that *looks* like a version wherever it appears — including inside a
+    release-notes blob or a commented-out item — and silently returns whichever
+    matched first. Reading the document structure means asking the enclosure of
+    the first channel item for its version attribute, which is the thing Sparkle
+    actually defines.
+    """
+    import xml.etree.ElementTree as ElementTree
+
+    if len(xml_text.encode("utf-8", "ignore")) > APPCAST_MAX_BYTES:
+        raise BackendError(
+            f"appcast is larger than {APPCAST_MAX_BYTES} bytes — refusing to parse it"
+        )
+    try:
+        root = ElementTree.fromstring(xml_text)
+    except ElementTree.ParseError as exc:
+        raise BackendError(f"appcast is not valid XML: {exc}")
+
+    items = root.findall("./channel/item") or root.findall(".//item")
+    for item in items:
+        # Sparkle puts the version on the item or on its <enclosure>, as
+        # sparkle:shortVersionString (display) and sparkle:version (build).
+        candidates = [item, *item.findall("enclosure")]
+        short = build = None
+        for element in candidates:
+            short = short or element.get(f"{{{SPARKLE_NS}}}shortVersionString")
+            build = build or element.get(f"{{{SPARKLE_NS}}}version")
+        title = (item.findtext("title") or "").strip() or None
+        if short or build:
+            return {"latest": short or build, "latest_build": build, "title": title}
+    # Well-formed XML carrying no version is not an appcast — most often it is
+    # an HTML error page, which parses cleanly and yields nothing. Returning
+    # None here would make update_check report "unknown" for a failed fetch.
+    raise BackendError("no version found in appcast — is the feed URL correct?")
+
+
 def update_check(timeout: int = 15) -> dict:
     """Fetch the Sparkle appcast and compare against the installed version."""
     info = app_version()
     feed = info.get("feed_url")
     if not feed:
         raise BackendError("no SUFeedURL in Info.plist")
-    result = _run(["curl", "-fsSL", "--max-time", str(timeout), feed], timeout=timeout + 5)
+    result = _run(
+        [
+            "curl",
+            "-fsSL",
+            "--max-time",
+            str(timeout),
+            "--max-filesize",
+            str(APPCAST_MAX_BYTES),
+            feed,
+        ],
+        timeout=timeout + 5,
+    )
     if result.returncode != 0:
         raise BackendError(f"appcast fetch failed: {result.stderr.strip() or feed}")
-    versions = re.findall(r'sparkle:shortVersionString="([^"]+)"', result.stdout)
-    latest = versions[0] if versions else None
+    parsed = parse_appcast(result.stdout)
+    latest = parsed["latest"]
     return {
         "installed": info["version"],
         "latest": latest,
+        "latest_build": parsed["latest_build"],
+        "title": parsed["title"],
         "up_to_date": (latest == info["version"]) if latest else None,
         "feed_url": feed,
     }
