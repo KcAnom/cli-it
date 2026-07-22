@@ -8,6 +8,9 @@ Written **before** the test code (HARNESS.md phase 4). Two suites:
   `click.testing.CliRunner`.
 - `test_full_e2e.py` — drives the installed entry point through `subprocess`
   against the **real repomix**, and skips cleanly when the binary is absent.
+- `test_drift.py` — drives the entry point against a **stub** `$REPOMIX_BIN`
+  that behaves like a future repomix: succeeds, writes its output file, prints
+  an unparseable summary. Needs no real repomix, so it runs everywhere.
 
 ## Command inventory
 
@@ -173,35 +176,49 @@ set $REPOMIX_BIN)"*. The unit suite needs no repomix, as required.
 **With repomix installed** — `python -m pytest`:
 
 ```
-71 passed in 6.60s
+77 passed in 8.33s
 ```
 
 **With repomix unreachable:**
 
 ```
-60 passed, 11 skipped in 0.07s
+66 passed, 11 skipped in 0.64s
 ```
+
+The 11 skips are the e2e module. The drift suite runs in both cases — its stub
+is the binary.
 
 One failure during development: `analyze files` initially passed `-o` alongside
 `--stdout`, which repomix rejects outright (*"option '--stdout' cannot be used
 with option '-o, --output <file>'"*). The output pair is now dropped from the
 argv for that call.
 
-### Drift simulation (manual, 0.2.0)
+### Drift suite — `test_drift.py`
 
-A stub on `$REPOMIX_BIN` reporting version 9.0.0, writing the output file, and
-printing an unrecognizable summary:
+The drift scenario started as a throwaway stub run by hand. It is now six
+automated tests, because nothing else covered the wiring between the parsers
+and the CLI: `test_core.py` tests the parsers in isolation and the CLI with a
+monkeypatched backend, and `test_full_e2e.py` only ever sees a *working*
+repomix. The stub is the binary, so the suite needs no repomix at all.
+
+D1. `backend` → `version_tested: false`, warning naming the 1.17.x range.
+D2. `pack run` → exit 1, "could not parse the pack summary", raw output echoed.
+D3. `security check` → exit 1, and never the string "no suspicious files detected".
+D4. `analyze tokens` → exit 1 rather than an empty tree.
+D5. `analyze files` → exit 1; the stub's prose is rejected, not parsed as JSON.
+D6. `profile info` still exits 0 — drift must not take down commands that never
+    touch repomix.
+
+**Verified as real regression tests.** With the 0.1.0 behavior restored
+(`parse_security` defaulting to clean, no summary drift check), D2 and D3 fail:
 
 ```
-backend         → version_tested: false, warning naming the 1.17.x range
-pack run        → exit 1, "could not parse the pack summary ...", raw tail shown
-security check  → exit 1, same — no clean verdict issued
+FAILED test_security_check_never_reports_unconfirmed_clean
+  returncode=0, stdout='no suspicious files detected\n'
 ```
 
-Under 0.1.0 that same stub made `security check` print *"no suspicious files
-detected"* and exit 0. That was the most dangerous defect in the harness: a
-formatting change upstream would have produced a confident false clean. It is
-the reason `parse_security` now has three outcomes instead of two.
+That is the false clean, reproduced. D1, D4, D5, and D6 pass against 0.1.0
+because they cover behavior that release did not have.
 
 ### Failures found and resolved
 
