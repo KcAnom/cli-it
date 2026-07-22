@@ -7,8 +7,6 @@ on:
       - "hermes-skill/**"
       - "reasonix-skill/**"
       - "opencode-commands/**"
-      - "cli-it-plugin/claude-commands/**"
-      - "cli-it-plugin/.claude-plugin/**"
 
 permissions:
   contents: read
@@ -24,36 +22,8 @@ jobs:
           for f in codex-skill/SKILL.md hermes-skill/SKILL.md reasonix-skill/SKILL.md \
                    opencode-commands/cli-it.md opencode-commands/cli-it-list.md \
                    opencode-commands/cli-it-refine.md opencode-commands/cli-it-test.md \
-                   opencode-commands/cli-it-validate.md \
-                   cli-it-plugin/claude-commands/cli-it.md \
-                   cli-it-plugin/claude-commands/list.md \
-                   cli-it-plugin/claude-commands/refine.md \
-                   cli-it-plugin/claude-commands/test.md \
-                   cli-it-plugin/claude-commands/validate.md; do
+                   opencode-commands/cli-it-validate.md; do
             [ -f "$f" ] || { echo "missing $f"; exit 1; }
             head -1 "$f" | grep -q '^---$' || { echo "$f missing frontmatter"; exit 1; }
           done
           echo "adapter skills OK"
-
-      - name: Claude plugin manifest points at the Claude command layer
-        run: |
-          set -e
-          python3 - <<'PY'
-          import json, sys
-          m = json.load(open("cli-it-plugin/.claude-plugin/plugin.json"))
-          if m.get("commands") != "./claude-commands":
-              sys.exit(f'plugin.json commands is {m.get("commands")!r}, expected "./claude-commands"')
-          mk = json.load(open(".claude-plugin/marketplace.json"))
-          if mk["metadata"]["version"] != m["version"]:
-              sys.exit(f'version skew: marketplace {mk["metadata"]["version"]} vs plugin {m["version"]}')
-          print("claude plugin manifests OK")
-          PY
-
-      - name: Canonical commands stay host-neutral
-        run: |
-          set -e
-          if grep -rn 'CLAUDE_PLUGIN_ROOT' cli-it-plugin/commands/ cli-it-plugin/HARNESS.md; then
-            echo "host-specific paths must not appear in the canonical SOP (Pi copies it verbatim)"
-            exit 1
-          fi
-          echo "canonical commands OK"
