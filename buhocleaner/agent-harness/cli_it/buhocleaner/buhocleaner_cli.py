@@ -88,39 +88,6 @@ def backend_cmd(ctx: click.Context) -> None:
     _emit(ctx, info, [f"{key}: {value}" for key, value in info.items()])
 
 
-@cli.command("doctor")
-@click.option("--ui", "check_ui", is_flag=True,
-              help="Also check the GUI element names (needs the app running).")
-@click.pass_context
-def doctor_cmd(ctx: click.Context, check_ui: bool) -> None:
-    """Check every assumption this harness makes about the real app.
-
-    Verifies the Info.plist, the privileged helper, the writable defaults keys,
-    and that the Sparkle appcast still parses. With --ui, also confirms the GUI
-    controls the cleaning flow clicks are still present.
-
-    Reports drift; never repairs it. A renamed button in a cleaning app cannot
-    be verified against any second source, so the harness will not guess a
-    replacement — it tells you what changed and exits non-zero.
-    """
-    report = _backend_call(_backend.run_doctor, check_ui=check_ui)
-    human = [f"verdict: {report['verdict']}"]
-    for name, check in report["checks"].items():
-        mark = "ok  " if check["ok"] else "FAIL"
-        if check.get("skipped"):
-            mark = "skip"
-        human.append(f"  {mark} {name}")
-        if check.get("detail") and not check["ok"]:
-            human.append(f"       {check['detail']}")
-    ui = report["checks"].get("ui_contract", {})
-    if ui.get("missing"):
-        human.append(f"  missing controls: {', '.join(ui['missing'])}")
-        human.append(f"  visible buttons:  {', '.join(ui.get('visible_buttons', []))}")
-    _emit(ctx, report, human)
-    if report["verdict"] != "healthy":
-        ctx.exit(1)
-
-
 # --- app ---------------------------------------------------------------------
 
 
@@ -666,7 +633,6 @@ def preview_latest(ctx: click.Context, recipe: str, root_dir: Path | None) -> No
 
 _REPL_COMMANDS = {
     "backend / app info|launch|quit|update-check": "probe & control the real app",
-    "doctor [--ui]": "check the harness's assumptions about the app",
     "plan new|info|save": "manage cleanup-plan files",
     "category list|enable|disable|threshold|root": "undoable plan mutations",
     "scan run|report": "read-only size probes",

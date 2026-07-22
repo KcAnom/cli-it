@@ -16,15 +16,6 @@ engine is a code-sign-gated privileged XPC helper. This harness therefore:
   file — every removal is performed by BuhoCleaner. Requires Accessibility +
   Automation permission for your terminal.
 
-## Checking the harness still fits the app
-
-BuhoCleaner is a GUI app the harness drives by name. When an update renames a
-button or a preference key, `cli-it-buhocleaner doctor` tells you — checking the
-Info.plist, privileged helper, writable defaults keys, and appcast, plus the GUI
-controls themselves with `--ui`. It reports drift and never guesses a
-replacement: there is no second source that confirms which control deletes
-files, so repair is a deliberate human edit.
-
 ## Quick start
 
 ```bash

@@ -162,77 +162,20 @@ def write_pref(key: str, value, value_type: str = "bool") -> None:
 # --- update check ------------------------------------------------------------
 
 
-SPARKLE_NS = "http://www.andymatuschak.org/xml-namespaces/sparkle"
-
-#: Refuse to parse an appcast larger than this. The feed is a few KB of RSS;
-#: anything vastly bigger is either not an appcast or an attempt to make the XML
-#: parser do too much work.
-APPCAST_MAX_BYTES = 2 * 1024 * 1024
-
-
-def parse_appcast(xml_text: str) -> dict:
-    """Extract the newest published version from a Sparkle appcast (pure).
-
-    Parsed as XML rather than pattern-matched. A regex over markup finds a
-    string that *looks* like a version wherever it appears — including inside a
-    release-notes blob or a commented-out item — and silently returns whichever
-    matched first. Reading the document structure means asking the enclosure of
-    the first channel item for its version attribute, which is the thing Sparkle
-    actually defines.
-    """
-    import xml.etree.ElementTree as ElementTree
-
-    if len(xml_text.encode("utf-8", "ignore")) > APPCAST_MAX_BYTES:
-        raise BackendError(
-            f"appcast is larger than {APPCAST_MAX_BYTES} bytes — refusing to parse it"
-        )
-    try:
-        root = ElementTree.fromstring(xml_text)
-    except ElementTree.ParseError as exc:
-        raise BackendError(f"appcast is not valid XML: {exc}")
-
-    items = root.findall("./channel/item") or root.findall(".//item")
-    for item in items:
-        # Sparkle puts the version on the item or on its <enclosure>, as
-        # sparkle:shortVersionString (display) and sparkle:version (build).
-        candidates = [item, *item.findall("enclosure")]
-        short = build = None
-        for element in candidates:
-            short = short or element.get(f"{{{SPARKLE_NS}}}shortVersionString")
-            build = build or element.get(f"{{{SPARKLE_NS}}}version")
-        title = (item.findtext("title") or "").strip() or None
-        if short or build:
-            return {"latest": short or build, "latest_build": build, "title": title}
-    return {"latest": None, "latest_build": None, "title": None}
-
-
 def update_check(timeout: int = 15) -> dict:
     """Fetch the Sparkle appcast and compare against the installed version."""
     info = app_version()
     feed = info.get("feed_url")
     if not feed:
         raise BackendError("no SUFeedURL in Info.plist")
-    result = _run(
-        [
-            "curl",
-            "-fsSL",
-            "--max-time",
-            str(timeout),
-            "--max-filesize",
-            str(APPCAST_MAX_BYTES),
-            feed,
-        ],
-        timeout=timeout + 5,
-    )
+    result = _run(["curl", "-fsSL", "--max-time", str(timeout), feed], timeout=timeout + 5)
     if result.returncode != 0:
         raise BackendError(f"appcast fetch failed: {result.stderr.strip() or feed}")
-    parsed = parse_appcast(result.stdout)
-    latest = parsed["latest"]
+    versions = re.findall(r'sparkle:shortVersionString="([^"]+)"', result.stdout)
+    latest = versions[0] if versions else None
     return {
         "installed": info["version"],
         "latest": latest,
-        "latest_build": parsed["latest_build"],
-        "title": parsed["title"],
         "up_to_date": (latest == info["version"]) if latest else None,
         "feed_url": feed,
     }
@@ -253,38 +196,6 @@ ACCESS_HINT = (
 
 # Affirmative labels a post-Remove confirmation sheet might use.
 _CONFIRM_LABELS = ("Remove", "Delete", "Continue", "Confirm", "OK")
-
-#: The GUI element names the harness depends on, declared once so `doctor` can
-#: check the same names `flash_clean` will click.
-#:
-#: These are deliberately **never** re-learned automatically. A renamed summary
-#: label can be verified against an independent count; a renamed button cannot —
-#: there is no second source that says which control really removes files.
-#: Adopting a guessed name here would mean clicking an unknown button in a
-#: cleaning app. `doctor` therefore reports drift and stops.
-#: `requirement` is either "always" — the element should be present whenever the
-#: window is open — or a group name, meaning *at least one* member of that group
-#: must be present. "Scan" and "Remove" are mutually exclusive in the real app:
-#: Scan shows before a scan runs, Remove after it finds something. Demanding
-#: both at once reports drift on a perfectly healthy app, so they are checked as
-#: a group.
-UI_CONTRACT = {
-    "Flash Clean": {
-        "kind": "text",
-        "requirement": "always",
-        "used_by": "flash_clean: opens the Flash Clean pane",
-    },
-    "Scan": {
-        "kind": "button",
-        "requirement": "scan_action",
-        "used_by": "flash_clean: starts the scan (present before scanning)",
-    },
-    "Remove": {
-        "kind": "button",
-        "requirement": "scan_action",
-        "used_by": "flash_clean --confirm: performs the deletion (present after a scan)",
-    },
-}
 
 _SNAPSHOT_SCRIPT = """
 with timeout of 30 seconds
@@ -478,138 +389,6 @@ def probe() -> dict:
     else:
         info["install_hint"] = INSTALL_HINT
     return info
-
-
-def run_doctor(*, check_ui: bool = False, timeout: int = 15) -> dict:
-    """Self-test every assumption this harness makes about the real app.
-
-    Reports drift; never repairs it. The repomix harness can re-learn a renamed
-    output label because repomix's JSON output provides an independent count to
-    verify the new label against. Nothing here has that property:
-
-    - The defaults keys are a *write* whitelist. Guessing a replacement for a
-      renamed key would mean writing into an unknown preference.
-    - The GUI element names drive a cleaning app. There is no second source
-      confirming which control deletes files, so a learned name is a guess about
-      what gets clicked.
-
-    So `doctor` tells you precisely what changed and stops. Fixing the contract
-    is a human edit to `UI_CONTRACT` / `WRITABLE_TOGGLE_KEYS`, made once someone
-    has looked at the app.
-    """
-    report: dict = {"checks": {}, "healable": False}
-
-    installed = backend_available()
-    report["checks"]["app_installed"] = {
-        "ok": installed,
-        "app_path": str(APP_PATH),
-        **({} if installed else {"detail": INSTALL_HINT}),
-    }
-    if not installed:
-        report["verdict"] = "unavailable"
-        report["failing"] = ["app_installed"]
-        return report
-
-    version = app_version()
-    report["version"] = version
-    report["checks"]["info_plist"] = {
-        "ok": version["version"] != "?" and bool(version.get("feed_url")),
-        "version": version["version"],
-        "feed_url": version.get("feed_url"),
-        "detail": None if version.get("feed_url") else "no SUFeedURL in Info.plist",
-    }
-    report["checks"]["privileged_helper"] = {
-        "ok": HELPER_PATH.exists(),
-        "path": str(HELPER_PATH),
-        "detail": None if HELPER_PATH.exists() else "helper absent — the app has not run a clean yet",
-    }
-
-    # defaults domain: are the keys the harness writes still present?
-    try:
-        prefs = read_prefs()
-        present = sorted(WRITABLE_TOGGLE_KEYS & set(prefs))
-        missing = sorted(WRITABLE_TOGGLE_KEYS - set(prefs))
-        report["checks"]["defaults_domain"] = {
-            "ok": not missing,
-            "present": present,
-            "missing": missing,
-            "detail": (
-                None
-                if not missing
-                else "these toggle keys are gone from the domain — the app may have "
-                "renamed them; update WRITABLE_TOGGLE_KEYS after checking the app"
-            ),
-        }
-    except BackendError as exc:
-        report["checks"]["defaults_domain"] = {"ok": False, "detail": str(exc)}
-
-    # appcast: does it still parse as XML with a version on the first item?
-    try:
-        update = update_check(timeout=timeout)
-        report["checks"]["appcast"] = {
-            "ok": update["latest"] is not None,
-            "installed": update["installed"],
-            "latest": update["latest"],
-            "detail": None if update["latest"] else "no version found on the first appcast item",
-        }
-    except BackendError as exc:
-        report["checks"]["appcast"] = {"ok": False, "detail": str(exc)}
-
-    # GUI contract: opt-in, because it needs the app running plus Accessibility.
-    if not check_ui:
-        report["checks"]["ui_contract"] = {
-            "ok": True,
-            "skipped": True,
-            "detail": "pass --ui to check the GUI element names (needs the app "
-            "running and Accessibility permission)",
-        }
-    elif not is_running():
-        report["checks"]["ui_contract"] = {
-            "ok": False,
-            "detail": "BuhoCleaner is not running (run: app launch)",
-        }
-    else:
-        try:
-            snapshot = ui_snapshot()
-            seen = set(snapshot["buttons"]) | set(snapshot["texts"])
-            found = {name: name in seen for name in UI_CONTRACT}
-
-            missing = sorted(
-                name
-                for name, meta in UI_CONTRACT.items()
-                if meta["requirement"] == "always" and not found[name]
-            )
-            groups: dict[str, list[str]] = {}
-            for name, meta in UI_CONTRACT.items():
-                if meta["requirement"] != "always":
-                    groups.setdefault(meta["requirement"], []).append(name)
-            empty_groups = sorted(
-                group for group, names in groups.items() if not any(found[n] for n in names)
-            )
-
-            report["checks"]["ui_contract"] = {
-                "ok": not missing and not empty_groups,
-                "expected": {name: meta["used_by"] for name, meta in UI_CONTRACT.items()},
-                "found": found,
-                "missing": missing,
-                "empty_groups": {group: groups[group] for group in empty_groups},
-                "visible_buttons": sorted(snapshot["buttons"]),
-                "detail": (
-                    None
-                    if not missing and not empty_groups
-                    else "expected controls are gone. The harness will NOT guess a "
-                    "replacement — a renamed button in a cleaning app cannot be "
-                    "verified against anything. Compare 'visible_buttons' against "
-                    "UI_CONTRACT and update it by hand."
-                ),
-            }
-        except BackendError as exc:
-            report["checks"]["ui_contract"] = {"ok": False, "detail": str(exc)}
-
-    failing = [name for name, check in report["checks"].items() if not check["ok"]]
-    report["failing"] = failing
-    report["verdict"] = "healthy" if not failing else "degraded"
-    return report
 
 
 if __name__ == "__main__":
