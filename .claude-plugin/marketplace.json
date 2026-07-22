@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "CLI-It — make real software agent-native with generated stateful CLI harnesses.",
-    "version": "0.4.1"
+    "version": "0.5.0"
   },
   "plugins": [
     {

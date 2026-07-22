@@ -1,14 +1,14 @@
 {
   "name": "cli-it",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "Generate agent-native CLI harnesses for real software using the 7-phase HARNESS.md methodology.",
   "author": {
     "name": "The CLI-It Contributors",
     "url": "https://github.com/KcAnom/cli-it"
   },
-  "homepage": "https://elev8tion.github.io/cli-it",
+  "homepage": "https://github.com/KcAnom/cli-it",
   "repository": "https://github.com/KcAnom/cli-it",
   "license": "Apache-2.0",
   "keywords": ["cli", "agent-native", "harness", "automation"],
-  "commands": "./commands"
+  "commands": "./claude-commands"
 }
