@@ -23,25 +23,6 @@
           "url": "https://github.com/elev8tion"
         }
       ]
-    },
-    {
-      "name": "buhocleaner",
-      "display_name": "BuhoCleaner",
-      "version": "0.2.0",
-      "description": "Harness for the BuhoCleaner macOS app: read-only cleanup scans, undoable cleanup plans, live preference toggles, Sparkle update check, and GUI-driven Flash Clean via accessibility scripting (--confirm gated; every deletion is performed by BuhoCleaner itself).",
-      "requires": "macOS with BuhoCleaner installed (probe/plan commands work without it)",
-      "homepage": "https://www.drbuho.com/buhocleaner",
-      "source_url": "https://github.com/KcAnom/cli-it-buhocleaner",
-      "install_cmd": "pip install \"git+https://github.com/KcAnom/cli-it-buhocleaner.git\"",
-      "entry_point": "cli-it-buhocleaner",
-      "skill_md": "skills/cli-it-buhocleaner/SKILL.md",
-      "category": "system-utilities",
-      "contributors": [
-        {
-          "name": "CLI-It Team",
-          "url": "https://github.com/elev8tion"
-        }
-      ]
     }
   ]
 }
