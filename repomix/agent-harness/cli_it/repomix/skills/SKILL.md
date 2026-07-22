@@ -1,7 +1,7 @@
 ---
 name: cli-it-repomix
 description: Agent-native, stateful CLI harness for the real [repomix](https://repomix.com)
-version: 0.2.0
+version: 0.3.0
 license: Apache-2.0
 ---
 
@@ -23,6 +23,8 @@ cli-it-repomix --help
 | Group | Command | Description |
 |-------|---------|-------------|
 | `root` | `backend` | Probe the real repomix installation. |
+| `root` | `doctor` | Self-test the parsers against a fixture whose true answer is known. |
+| `root` | `learned` | Show what the harness has learned about this repomix's output format. |
 | `profile` | `new` | Create a new pack profile with repomix defaults. |
 | `profile` | `info` | Show profile details. |
 | `profile` | `save` | Re-save a profile canonically (validates + normalizes formatting). |

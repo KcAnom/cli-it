@@ -18,7 +18,13 @@ harness adds is what a stateless one-shot CLI cannot give an agent:
   its real size, file count, and token count rather than trusting exit status.
 - **Stable JSON** — the token tree, pack summary, and security findings that
   repomix prints as decorated human text are parsed into fixed shapes.
-- **Loud failure on upstream drift** — those parsers read console output, which
+- **Self-healing on upstream drift** — `doctor --heal` re-learns renamed
+  summary labels by checking them against counts derived from repomix's JSON
+  output, then remembers them per repomix version (`learned` shows what it
+  knows). The security verdict is deliberately excluded: it has no independent
+  ground truth, so it fails closed forever rather than trusting a learned
+  phrase.
+- **Loud failure where healing isn't safe** — those parsers read console output, which
   is not a stable API. When repomix's format changes, commands fail with an
   error naming the tested version range instead of returning empty-looking
   results. `security check` will never report a clean scan it could not
@@ -30,6 +36,7 @@ harness adds is what a stateless one-shot CLI cannot give an agent:
 ```bash
 pip install -e /path/to/cli-it/repomix/agent-harness
 cli-it-repomix backend                                     # is repomix reachable?
+cli-it-repomix doctor                                      # are the parsers still working?
 
 cli-it-repomix profile new -n api -t ./src -o /tmp/api.profile.json
 cli-it-repomix filter add -p /tmp/api.profile.json '**/*.ts'

@@ -65,8 +65,8 @@
     {
       "name": "repomix",
       "display_name": "Repomix",
-      "version": "0.2.0",
-      "description": "Stateful harness over the real repomix codebase packer \u2014 reusable pack profiles, undoable profile edits, verified pack artifacts, parsed token trees and secret scans that fail loudly on upstream format drift, a JSON-sourced file inventory, and repomix's own Claude Agent Skill generator.",
+      "version": "0.3.0",
+      "description": "Stateful harness over the real repomix codebase packer \u2014 reusable pack profiles, undoable profile edits, verified pack artifacts, a JSON-sourced file inventory, and self-healing output parsers that re-learn renamed summary labels against repomix's own JSON (never the secrets verdict, which fails closed).",
       "requires": "repomix on PATH (npm install -g repomix), $REPOMIX_BIN, or npx \u2014 tested against repomix 1.17.x; profile/filter/option/session commands work without it",
       "homepage": "https://repomix.com",
       "source_url": "https://github.com/yamadashy/repomix",

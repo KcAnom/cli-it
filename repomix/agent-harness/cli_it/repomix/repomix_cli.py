@@ -20,6 +20,7 @@ from pathlib import Path
 import click
 
 from cli_it.repomix import __version__
+from cli_it.repomix.core import knowledge as _knowledge
 from cli_it.repomix.core import profile as _profile
 from cli_it.repomix.core import session as _session
 from cli_it.repomix.utils import preview_bundle as _preview
@@ -104,6 +105,59 @@ def backend_cmd(ctx: click.Context) -> None:
     """Probe the real repomix installation."""
     info = _backend.probe()
     _emit(ctx, info, [f"{key}: {value}" for key, value in info.items()])
+
+
+@cli.command("doctor")
+@click.option("--heal", is_flag=True, help="Learn and persist changed summary labels.")
+@click.option("--forget", is_flag=True, help="Discard everything learned and start clean.")
+@click.pass_context
+def doctor_cmd(ctx: click.Context, heal: bool, forget: bool) -> None:
+    """Self-test the parsers against a fixture whose true answer is known.
+
+    Packs a tiny tree with the real repomix and checks the console summary
+    against counts taken from repomix's own JSON output. With --heal, a summary
+    whose labels have been renamed upstream is re-learned from that comparison
+    and remembered for this repomix version.
+
+    The security check is diagnosed but never healed: a secrets verdict has no
+    independent ground truth, so the harness fails closed rather than trusting
+    a learned phrase. Exits non-zero when any parser is failing.
+    """
+    if forget:
+        _knowledge.forget()
+        _emit(ctx, {"forgotten": True}, ["discarded all learned formats"])
+        return
+
+    report = _backend_call(_backend.run_doctor, heal=heal)
+    human = [
+        f"repomix {report['version']} (tested: {report['tested_versions']})",
+        f"verdict: {report['verdict']}",
+    ]
+    for name, check in report["checks"].items():
+        human.append(f"  {'ok  ' if check['ok'] else 'FAIL'} {name}")
+    for label, fact in report.get("learned", {}).items():
+        human.append(f"  learned {label!r} -> {fact['field']} ({fact['provenance']})")
+    if report["verdict"] != "healthy" and not heal:
+        human.append("run `cli-it-repomix doctor --heal` to re-learn changed labels")
+    _emit(ctx, report, human)
+    if report["verdict"] != "healthy":
+        ctx.exit(1)
+
+
+@cli.command("learned")
+@click.pass_context
+def learned_cmd(ctx: click.Context) -> None:
+    """Show what the harness has learned about this repomix's output format."""
+    data = _knowledge.load()
+    versions = data.get("versions", {})
+    human = [f"store: {_knowledge.knowledge_path()}"]
+    if not versions:
+        human.append("nothing learned — the built-in labels are working")
+    for version, entry in versions.items():
+        human.append(f"{version} (learned {entry.get('learned_at')})")
+        for label, fact in (entry.get("labels") or {}).items():
+            human.append(f"  {label!r} -> {fact['field']}  [{fact['provenance']}]")
+    _emit(ctx, data, human)
 
 
 # --- profile -----------------------------------------------------------------
@@ -739,6 +793,8 @@ def preview_latest(ctx: click.Context, recipe: str, root_dir: Path | None) -> No
 
 _REPL_COMMANDS = {
     "backend": "probe the real repomix binary",
+    "doctor [--heal]": "self-test the parsers; re-learn changed labels",
+    "learned": "show what has been learned about repomix's format",
     "profile new|info|save": "manage pack-profile files",
     "target show|set": "local dirs or a remote repo (undoable)",
     "filter list|add|remove": "include/ignore glob patterns (undoable)",

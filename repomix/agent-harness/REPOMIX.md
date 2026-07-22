@@ -190,3 +190,28 @@ break them. The harness therefore:
 - offers `analyze files`, which derives its inventory from
   `--style json --stdout` — repomix's documented JSON shape, immune to console
   reformatting. Prefer it over `analyze metrics` where the per-file data suffices.
+
+## Self-healing (0.3.0)
+
+Failing loudly is the floor. Where a claim can be **checked against independent
+ground truth**, the harness re-learns the format instead of just erroring.
+
+`doctor` packs a fixture whose true contents it knows. `--style json --stdout`
+yields the real file and character counts; the console summary is then compared
+against them. With `--heal`, a renamed label is accepted only when its number
+*equals* the count already known from the JSON — verification, not guesswork.
+Learned labels are written to `~/.cli-it/repomix/learned-formats.json`, keyed by
+repomix version, each carrying its provenance and the evidence behind it, and
+every scraper consults them on subsequent runs. Built-in labels always take
+precedence, so a learned entry can never mask one that still works.
+
+Two honest limits, both surfaced rather than hidden:
+
+- **Token counts have no independent source** — the number comes from repomix's
+  own tokenizer. A token label is matched by wording alone and recorded as
+  `label-wording-heuristic`, distinct from `verified-against-json-output`.
+- **The security verdict is never healed.** There is no second source for "does
+  this repository leak credentials", so a learned "clean" phrase would be a
+  guess about secrets. `doctor` reports the security parser as `healable: false`
+  and the command keeps failing closed. This is the one place where erroring
+  forever is the correct behavior.

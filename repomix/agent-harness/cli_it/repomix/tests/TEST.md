@@ -18,6 +18,8 @@ Written **before** the test code (HARNESS.md phase 4). Two suites:
 |---|---|---|
 | root | `--version`, `--json`, REPL fallback | no |
 | `backend` | probe | no (reports unavailable) |
+| `doctor` | self-test, `--heal`, `--forget` | yes (`--forget` no) |
+| `learned` | show learned labels | no |
 | `profile` | `new`, `info`, `save` | no |
 | `target` | `show`, `set` | no |
 | `filter` | `list`, `add`, `remove` | no |
@@ -176,13 +178,13 @@ set $REPOMIX_BIN)"*. The unit suite needs no repomix, as required.
 **With repomix installed** — `python -m pytest`:
 
 ```
-77 passed in 8.33s
+82 passed in 9.50s
 ```
 
 **With repomix unreachable:**
 
 ```
-66 passed, 11 skipped in 0.64s
+71 passed, 11 skipped in 2.53s
 ```
 
 The 11 skips are the e2e module. The drift suite runs in both cases — its stub
@@ -208,6 +210,26 @@ D4. `analyze tokens` → exit 1 rather than an empty tree.
 D5. `analyze files` → exit 1; the stub's prose is rejected, not parsed as JSON.
 D6. `profile info` still exits 0 — drift must not take down commands that never
     touch repomix.
+
+**Self-healing (0.3.0)**, against a second stub that renamed its summary labels
+("Files packed", "Characters", "Tokens used") while still emitting valid JSON:
+
+D7. `doctor` alone reports `degraded`, names `summary` as failing, confirms the
+    JSON inventory is fine, and heals nothing.
+D8. `doctor --heal` learns `Files packed → total_files` and
+    `Characters → total_chars` with provenance `verified-against-json-output`,
+    and `Tokens used → total_tokens` as `label-wording-heuristic`.
+D9. A `pack run` that failed before healing succeeds after it, reporting
+    `total_files: 2` — the learning persists across processes.
+D10. `learned` shows the store; `doctor --forget` empties it.
+D11. The stub prints `Security: no problems found`. That phrase is **never**
+     adopted: the security check stays `unknown`, `healable: false`, and no
+     learned entry ever maps to the security field.
+
+Note D8's verdict stays `degraded` and the exit code non-zero even after a
+successful heal, because this stub's security block is also unrecognized and
+that is deliberately unhealable. Healing fixes what it can prove and stays
+honest about the rest.
 
 **Verified as real regression tests.** With the 0.1.0 behavior restored
 (`parse_security` defaulting to clean, no summary drift check), D2 and D3 fail:
