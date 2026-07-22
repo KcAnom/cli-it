@@ -2,7 +2,7 @@
   "meta": {
     "repo": "https://github.com/KcAnom/cli-it",
     "description": "CLI-It Hub \u2014 Agent-native stateful CLI interfaces for real software. Harness registry consumed by the `cli-it` package manager.",
-    "updated": "2026-07-19"
+    "updated": "2026-07-20"
   },
   "clis": [
     {
@@ -36,6 +36,44 @@
       "entry_point": "cli-it-buhocleaner",
       "skill_md": "skills/cli-it-buhocleaner/SKILL.md",
       "category": "system-utilities",
+      "contributors": [
+        {
+          "name": "CLI-It Team",
+          "url": "https://github.com/elev8tion"
+        }
+      ]
+    },
+    {
+      "name": "anomalyz",
+      "display_name": "Anomalyz",
+      "version": "0.1.0",
+      "description": "Stateful harness over the Anomalyz desktop app CLI \u2014 app/runtime status, repos, worktrees, automations, cortex memory, undoable session journal, verified exports",
+      "requires": "Anomalyz app built locally (node + out/cli/index.js) or `anomalyz` on PATH",
+      "homepage": "https://github.com/KcAnom/ANOMALYZ",
+      "source_url": "https://github.com/KcAnom/ANOMALYZ",
+      "install_cmd": "pip install \"git+https://github.com/KcAnom/ANOMALYZ.git#subdirectory=agent-harness\"",
+      "entry_point": "cli-it-anomalyz",
+      "skill_md": null,
+      "category": "developer-tools",
+      "contributors": [
+        {
+          "name": "KcAnom",
+          "url": "https://github.com/KcAnom"
+        }
+      ]
+    },
+    {
+      "name": "repomix",
+      "display_name": "Repomix",
+      "version": "0.1.0",
+      "description": "Stateful harness over the real repomix codebase packer \u2014 reusable pack profiles, undoable profile edits, verified pack artifacts, parsed token trees and secret scans, and repomix's own Claude Agent Skill generator.",
+      "requires": "repomix on PATH (npm install -g repomix), $REPOMIX_BIN, or npx \u2014 tested against repomix 1.17.x; profile/filter/option/session commands work without it",
+      "homepage": "https://repomix.com",
+      "source_url": "https://github.com/yamadashy/repomix",
+      "install_cmd": "pip install \"git+https://github.com/KcAnom/cli-it.git#subdirectory=repomix/agent-harness\"",
+      "entry_point": "cli-it-repomix",
+      "skill_md": "skills/cli-it-repomix/SKILL.md",
+      "category": "developer-tools",
       "contributors": [
         {
           "name": "CLI-It Team",
