@@ -162,3 +162,31 @@ destructive path is double-gated: `confirm=True` at the backend AND
 REPL identical to demoapp (`ReplSkin`, copied verbatim; `buhocleaner>`
 prompt). Preview recipe `scan-report` renders the last snapshot to
 `artifacts/report.txt` + `report.json` via `preview_bundle` conventions.
+
+
+## 0.3.0 — doctor, and why nothing here self-heals
+
+The repomix harness re-learns renamed output labels: repomix's `--style json
+--stdout` gives an independent count, so a new label can be *verified* before it
+is adopted. That precondition does not exist in this harness.
+
+- The defaults keys are a **write** whitelist. A guessed replacement for a
+  renamed key means writing into an unknown preference.
+- The GUI element names drive a **cleaning app**. No second source says which
+  control deletes files, so a learned button name is a guess about what gets
+  clicked.
+
+So `doctor` diagnoses and stops. It checks the Info.plist and SUFeedURL, the
+privileged helper, the writable defaults keys, the Sparkle appcast, and — behind
+`--ui` — the GUI contract. Repair is a human edit to `UI_CONTRACT` or
+`WRITABLE_TOGGLE_KEYS`, made after someone has looked at the app.
+
+`UI_CONTRACT` carries a `requirement` per element: `always`, or a group name
+meaning at least one member must be visible. Scan and Remove are mutually
+exclusive in the real UI and share the `scan_action` group — checking them
+individually reported drift on a healthy app.
+
+The Sparkle appcast regex is gone, replaced by XML parsing. A regex over markup
+matches a version-shaped string anywhere in the document, including release-note
+prose; reading the structure asks the first channel item for the attribute
+Sparkle actually defines. That deletes a scrape rather than healing one.

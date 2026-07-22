@@ -6,7 +6,7 @@ HERE = Path(__file__).resolve().parent
 
 setup(
     name="cli-it-buhocleaner",
-    version="0.2.0",
+    version="0.3.0",
     description="CLI-It agent harness for the BuhoCleaner macOS app",
     long_description=(HERE / "cli_it" / "buhocleaner" / "README.md").read_text(
         encoding="utf-8"

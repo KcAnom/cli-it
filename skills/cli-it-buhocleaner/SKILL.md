@@ -1,7 +1,7 @@
 ---
 name: cli-it-buhocleaner
 description: Agent-native, stateful CLI harness for the real BuhoCleaner macOS app: read-only cleanup scans, undoable cleanup plans, live preference control, and safe hand-off to the app for actual cleaning.
-version: 0.2.0
+version: 0.3.0
 license: Apache-2.0
 ---
 
@@ -23,6 +23,7 @@ cli-it-buhocleaner --help
 | Group | Command | Description |
 |-------|---------|-------------|
 | `root` | `backend` | Probe the BuhoCleaner installation. |
+| `root` | `doctor` | Check every assumption this harness makes about the real app. |
 | `app` | `info` | Show bundle version, helper, and running state. |
 | `app` | `launch` | Launch (or activate) BuhoCleaner. |
 | `app` | `quit` | Ask BuhoCleaner to quit (may prompt for Automation permission). |

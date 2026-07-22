@@ -115,3 +115,46 @@ accessibility scripting and reported `found_junk: 41.72 GB` with the Remove
 button present — nothing was deleted (`removed: false`). `clean run
 --confirm` (the destructive path) was intentionally NOT exercised by the
 test suite; its gating logic is covered by U29/U30 with a mocked backend.
+
+
+## 0.3.0 — doctor and the death of the appcast regex
+
+**Appcast parsing (U35–U40).** `update_check` matched
+`sparkle:shortVersionString="([^"]+)"` with a regex over raw markup. That finds a
+version-looking string *anywhere* — including inside release-notes prose or a
+commented-out item — and returns whichever matched first. Replaced with real XML
+parsing: first channel item, version read from the item or its `<enclosure>`.
+U36 is the case that proves the difference: an appcast whose description mentions
+`sparkle:shortVersionString="9.9.9"` in prose. The old regex returned 9.9.9; the
+parser returns the real 1.13.0. Input is size-capped (`APPCAST_MAX_BYTES`) and
+`curl` is given `--max-filesize` to match.
+
+**doctor (U41–U46).** Checks every assumption the harness makes: Info.plist and
+SUFeedURL, the privileged helper, the writable defaults keys, the appcast, and —
+with `--ui` — the GUI controls the cleaning flow clicks.
+
+It reports drift and **never repairs it**. The repomix harness can re-learn a
+renamed output label because repomix's JSON output supplies an independent count
+to verify the new label against. Nothing here has that property: a renamed
+button in a cleaning app cannot be checked against any second source, so
+adopting a guessed name would mean clicking an unknown control in an app that
+deletes files. U44 asserts exactly this — after seeing a snapshot containing
+"Clean Now", `UI_CONTRACT` is unchanged.
+
+**A false positive found by running it.** The first `--ui` run against the live
+app reported `missing controls: Scan` on a perfectly healthy install. "Scan" and
+"Remove" are mutually exclusive: Scan shows before a scan runs, Remove after it
+finds something. Demanding both at once flags drift on every app that has just
+scanned. The contract now carries a `requirement` — `always`, or a group name
+meaning *at least one* member must be present — and Scan/Remove share the
+`scan_action` group. U44b covers both being gone (real drift, fails); U44c
+covers the always-required pane being gone.
+
+### Results
+
+```
+55 passed, 1 skipped in 1.72s
+```
+
+Live against BuhoCleaner 1.16.2: `doctor --ui` → healthy, all six checks ok.
+`app update-check` now also returns `latest_build` and the item title.
