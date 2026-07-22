@@ -5,8 +5,14 @@ argument-hint: "[focus-area]"
 
 # /cli-it:refine — improve an existing harness
 
-Read `HARNESS.md` first. Then locate the harness in the current project
-(`*/agent-harness/` directory, or ask which one if several).
+Read `HARNESS.md` first. Discover candidate `*/agent-harness/` directories (or
+ask which one if several), then derive each candidate's `TARGET_PROJECT` from
+its lexical parent. Before inventory or edits, require the exact
+`agent-harness` basename and separately resolve parent and child to prove the
+candidate is the resolved direct child. Reject rather than repair invalid
+candidates, including escaping `cli_it`, package, or output symlinks. Use the
+validated resolved `HARNESS_PATH` for every harness-local read and change.
+Identify `CLI_IT_REPO_ROOT` separately if canonical output is regenerated.
 
 ## 1. Inventory coverage
 
@@ -34,6 +40,8 @@ probe commands > mutations > export > previews.
 
 Close the highest-value gaps following HARNESS.md phases 3–6.5 (implement →
 test plan → tests → docs → regenerate skills). Keep changes consistent with
-existing command naming and JSON shapes.
+existing command naming and JSON shapes. Regenerate packaged output beneath
+`HARNESS_PATH`; regenerate canonical output only through the separately
+validated `CLI_IT_REPO_ROOT`, with both destinations preflighted.
 
 Finish with a before/after coverage summary.

@@ -9,7 +9,11 @@ templates/SKILL.md.template into:
   2. `<harness>/cli_it/<software>/skills/SKILL.md` (packaged copy for wheels)
 
 Usage:
-  python skill_generator.py <harness_path> [--repo-root PATH]
+  python skill_generator.py <target-project>/agent-harness [--repo-root PATH]
+
+The harness argument must lexically name the direct ``agent-harness`` child of
+its target project. Relative and absolute paths are accepted; escaping
+harness or nested symlinks are rejected.
 """
 
 from __future__ import annotations
@@ -64,13 +68,61 @@ _DEF_RE = re.compile(r"^def\s+(?P<func>\w+)\s*\(")
 _DOCSTRING_RE = re.compile(r'"""(.*?)(?:"""|$)', re.DOTALL)
 
 
+def resolve_harness_path(path: str | Path) -> Path:
+    """Validate and resolve a direct ``<target-project>/agent-harness`` path.
+
+    The lexical basename is significant. Resolving the parent separately allows
+    symlinked project ancestors while rejecting a top-level harness symlink that
+    redirects outside the resolved target project.
+    """
+    submitted = Path(path)
+    if submitted.name != "agent-harness":
+        raise ValueError(
+            f"invalid harness path {submitted!s}: basename must be 'agent-harness'; "
+            "required form is <target-project>/agent-harness"
+        )
+    target_project = submitted.parent.resolve()
+    harness = submitted.resolve()
+    expected = target_project / "agent-harness"
+    if harness != expected:
+        raise ValueError(
+            f"invalid harness path {submitted!s}: resolved path is not the direct "
+            "agent-harness child of its resolved target project; required form is "
+            "<target-project>/agent-harness"
+        )
+    return harness
+
+
+def _resolve_within(path: Path, root: Path, label: str) -> Path:
+    """Resolve *path* and reject symlink traversal outside resolved *root*."""
+    resolved_root = root.resolve()
+    resolved = path.resolve()
+    if not resolved.is_relative_to(resolved_root):
+        raise ValueError(
+            f"{label} escapes its allowed root: {path} resolves outside "
+            f"{resolved_root}"
+        )
+    return resolved
+
+
+def _resolve_file_if_present(path: Path, root: Path, label: str) -> Path:
+    """Resolve an optional file safely, including a dangling symlink."""
+    if path.exists() or path.is_symlink():
+        return _resolve_within(path, root, label)
+    return path
+
+
 def _find_software_dir(harness_path: Path) -> Path:
-    namespace = harness_path / "cli_it"
-    if not namespace.is_dir():
+    namespace_path = harness_path / "cli_it"
+    if not namespace_path.is_dir():
         raise FileNotFoundError(f"no cli_it/ namespace dir under {harness_path}")
-    candidates = [
-        d for d in namespace.iterdir() if d.is_dir() and d.name != "__pycache__"
-    ]
+    namespace = _resolve_within(namespace_path, harness_path, "cli_it namespace")
+    candidates = []
+    for candidate in namespace.iterdir():
+        if candidate.is_dir() and candidate.name != "__pycache__":
+            candidates.append(
+                _resolve_within(candidate, namespace, "software package")
+            )
     if len(candidates) != 1:
         raise ValueError(
             f"expected exactly one software package under {namespace}, "
@@ -139,27 +191,40 @@ def _parse_click_module(source: str) -> list[CommandGroup]:
 
 
 def extract_cli_metadata(harness_path: str | Path) -> SkillMetadata:
-    harness_path = Path(harness_path).resolve()
+    """Extract metadata from a validated direct ``agent-harness`` child."""
+    return _extract_cli_metadata(resolve_harness_path(harness_path))
+
+
+def _extract_cli_metadata(harness_path: Path) -> SkillMetadata:
     software_dir = _find_software_dir(harness_path)
     software = software_dir.name
 
-    cli_module = software_dir / f"{software}_cli.py"
+    cli_module = _resolve_file_if_present(
+        software_dir / f"{software}_cli.py", software_dir, "CLI module"
+    )
     if not cli_module.is_file():
-        candidates = list(software_dir.glob("*_cli.py"))
+        candidates = [
+            _resolve_within(candidate, software_dir, "CLI module")
+            for candidate in software_dir.glob("*_cli.py")
+        ]
         if not candidates:
             raise FileNotFoundError(f"no *_cli.py module in {software_dir}")
         cli_module = candidates[0]
     groups = _parse_click_module(cli_module.read_text(encoding="utf-8"))
 
     version = "0.1.0"
-    setup_py = harness_path / "setup.py"
+    setup_py = _resolve_file_if_present(
+        harness_path / "setup.py", harness_path, "setup.py metadata file"
+    )
     if setup_py.is_file():
         match = re.search(r'version\s*=\s*["\']([^"\']+)["\']', setup_py.read_text())
         if match:
             version = match.group(1)
 
     description = f"Agent-native CLI harness for {software}"
-    readme = software_dir / "README.md"
+    readme = _resolve_file_if_present(
+        software_dir / "README.md", software_dir, "README metadata file"
+    )
     if readme.is_file():
         for line in readme.read_text(encoding="utf-8").splitlines():
             line = line.strip()
@@ -248,23 +313,55 @@ def _find_repo_root(start: Path) -> Path | None:
     return None
 
 
+def _resolve_explicit_repo_root(repo_root: str | Path) -> Path:
+    """Require an explicit root to be an existing CLI-It repository."""
+    root = Path(repo_root).resolve()
+    if not root.is_dir():
+        raise ValueError(f"invalid CLI-It repository root {repo_root!s}: directory does not exist")
+    registry = root / "registry.json"
+    skills = root / "skills"
+    if not registry.is_file() or not skills.is_dir():
+        raise ValueError(
+            f"invalid CLI-It repository root {repo_root!s}: requires registry.json "
+            "file and skills/ directory markers"
+        )
+    _resolve_within(registry, root, "repository registry marker")
+    _resolve_within(skills, root, "repository skills marker")
+    return root
+
+
 def generate_skill_file(
     harness_path: str | Path, repo_root: str | Path | None = None
 ) -> list[Path]:
-    """Render and dual-write SKILL.md; returns the paths written."""
-    harness_path = Path(harness_path).resolve()
-    meta = extract_cli_metadata(harness_path)
+    """Render and dual-write SKILL.md after preflighting every destination."""
+    harness = resolve_harness_path(harness_path)
+    root = (
+        _resolve_explicit_repo_root(repo_root)
+        if repo_root is not None
+        else _find_repo_root(harness)
+    )
+    meta = _extract_cli_metadata(harness)
     content = generate_skill_md(meta)
-    written: list[Path] = []
 
-    root = Path(repo_root).resolve() if repo_root else _find_repo_root(harness_path)
+    packaged = _resolve_within(
+        _find_software_dir(harness) / "skills" / "SKILL.md",
+        harness,
+        "packaged skill destination",
+    )
+    canonical = None
     if root is not None:
-        canonical = root / "skills" / meta.skill_name / "SKILL.md"
+        canonical = _resolve_within(
+            root / "skills" / meta.skill_name / "SKILL.md",
+            root,
+            "canonical skill destination",
+        )
+
+    # All destinations have passed boundary checks before the first mkdir/write.
+    written: list[Path] = []
+    if canonical is not None:
         canonical.parent.mkdir(parents=True, exist_ok=True)
         canonical.write_text(content, encoding="utf-8")
         written.append(canonical)
-
-    packaged = _find_software_dir(harness_path) / "skills" / "SKILL.md"
     packaged.parent.mkdir(parents=True, exist_ok=True)
     packaged.write_text(content, encoding="utf-8")
     written.append(packaged)
@@ -273,8 +370,13 @@ def generate_skill_file(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("harness_path", help="path to <software>/agent-harness/")
-    parser.add_argument("--repo-root", default=None, help="monorepo root override")
+    parser.add_argument(
+        "harness_path",
+        help="direct <target-project>/agent-harness child (not a project/repo root)",
+    )
+    parser.add_argument(
+        "--repo-root", default=None, help="CLI-It repository root override"
+    )
     args = parser.parse_args()
     for path in generate_skill_file(args.harness_path, repo_root=args.repo_root):
         print(path)

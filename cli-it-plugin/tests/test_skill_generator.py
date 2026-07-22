@@ -58,6 +58,195 @@ def test_generate_skill_file_dual_write(harness_copy, tmp_path):
     assert canonical.read_text() == packaged.read_text()
 
 
+def test_harness_path_accepts_str_relative_dotdot_and_symlinked_ancestor(
+    harness_copy, tmp_path, monkeypatch
+):
+    assert skill_generator.extract_cli_metadata(str(harness_copy)).software == "demoapp"
+
+    monkeypatch.chdir(tmp_path)
+    relative = Path("demoapp") / "ignored" / ".." / "agent-harness"
+    assert skill_generator.extract_cli_metadata(relative).software == "demoapp"
+
+    link = tmp_path / "linked-project"
+    _symlink_or_skip(link, harness_copy.parent)
+    resolved = skill_generator.resolve_harness_path(link / "agent-harness")
+    assert resolved == harness_copy.resolve()
+
+
+def test_harness_path_rejects_project_root_and_wrong_basename(harness_copy, tmp_path):
+    with pytest.raises(ValueError, match="basename must be 'agent-harness'"):
+        skill_generator.extract_cli_metadata(harness_copy.parent)
+
+    wrong = tmp_path / "wrong-name"
+    shutil.copytree(harness_copy, wrong)
+    with pytest.raises(ValueError, match="required form is"):
+        skill_generator.extract_cli_metadata(wrong)
+
+
+def test_named_but_incomplete_harness_preserves_structural_error(tmp_path):
+    harness = tmp_path / "project" / "agent-harness"
+    harness.mkdir(parents=True)
+    with pytest.raises(FileNotFoundError, match="no cli_it"):
+        skill_generator.extract_cli_metadata(harness)
+
+
+def _symlink_or_skip(link: Path, target: Path) -> None:
+    try:
+        link.symlink_to(target, target_is_directory=True)
+    except (OSError, NotImplementedError) as exc:
+        pytest.skip(f"directory symlinks unavailable: {exc}")
+
+
+def _file_symlink_or_skip(link: Path, target: Path) -> None:
+    try:
+        link.symlink_to(target)
+    except (OSError, NotImplementedError) as exc:
+        pytest.skip(f"file symlinks unavailable: {exc}")
+
+
+def _repo_with_sentinel(tmp_path: Path) -> tuple[Path, Path]:
+    root = tmp_path / "repo"
+    canonical = root / "skills" / "cli-it-demoapp" / "SKILL.md"
+    canonical.parent.mkdir(parents=True)
+    canonical.write_bytes(b"canonical sentinel\n")
+    (root / "registry.json").write_text("{}")
+    return root, canonical
+
+
+def test_invalid_generation_creates_no_fresh_outputs(harness_copy, tmp_path):
+    wrong = tmp_path / "wrong-name"
+    shutil.copytree(harness_copy, wrong)
+    shutil.rmtree(wrong / "cli_it" / "demoapp" / "skills")
+    root = tmp_path / "fresh-repo"
+    (root / "skills").mkdir(parents=True)
+
+    with pytest.raises(ValueError, match="basename"):
+        skill_generator.generate_skill_file(wrong, repo_root=root)
+    assert not (root / "skills" / "cli-it-demoapp" / "SKILL.md").exists()
+    assert not (wrong / "cli_it" / "demoapp" / "skills" / "SKILL.md").exists()
+
+
+def test_top_level_harness_symlink_rejected_before_writes(harness_copy, tmp_path):
+    project = tmp_path / "other-project"
+    project.mkdir()
+    linked_harness = project / "agent-harness"
+    _symlink_or_skip(linked_harness, harness_copy)
+    root, canonical = _repo_with_sentinel(tmp_path)
+    packaged = harness_copy / "cli_it" / "demoapp" / "skills" / "SKILL.md"
+    before = packaged.read_bytes()
+
+    with pytest.raises(ValueError, match="resolved path is not the direct"):
+        skill_generator.generate_skill_file(linked_harness, repo_root=root)
+    assert canonical.read_bytes() == b"canonical sentinel\n"
+    assert packaged.read_bytes() == before
+
+
+@pytest.mark.parametrize("escape", ["namespace", "package"])
+def test_metadata_rejects_escaping_nested_symlink(harness_copy, tmp_path, escape):
+    external = tmp_path / "external"
+    if escape == "namespace":
+        shutil.copytree(harness_copy / "cli_it", external)
+        shutil.rmtree(harness_copy / "cli_it")
+        _symlink_or_skip(harness_copy / "cli_it", external)
+        match = "cli_it namespace escapes"
+    else:
+        source = harness_copy / "cli_it" / "demoapp"
+        shutil.copytree(source, external)
+        shutil.rmtree(source)
+        _symlink_or_skip(source, external)
+        match = "software package escapes"
+
+    with pytest.raises(ValueError, match=match):
+        skill_generator.extract_cli_metadata(harness_copy)
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "match"),
+    [
+        (Path("cli_it/demoapp/demoapp_cli.py"), "CLI module escapes"),
+        (Path("setup.py"), "setup.py metadata file escapes"),
+        (Path("cli_it/demoapp/README.md"), "README metadata file escapes"),
+    ],
+)
+def test_metadata_file_symlink_escape_rejected_before_writes(
+    harness_copy, tmp_path, relative_path, match
+):
+    source = harness_copy / relative_path
+    external = tmp_path / f"external-{source.name}"
+    external.write_bytes(source.read_bytes())
+    source.unlink()
+    _file_symlink_or_skip(source, external)
+    root, canonical = _repo_with_sentinel(tmp_path)
+    packaged = harness_copy / "cli_it" / "demoapp" / "skills" / "SKILL.md"
+    packaged_before = packaged.read_bytes()
+
+    with pytest.raises(ValueError, match=match):
+        skill_generator.generate_skill_file(harness_copy, repo_root=root)
+    assert canonical.read_bytes() == b"canonical sentinel\n"
+    assert packaged.read_bytes() == packaged_before
+
+
+@pytest.mark.parametrize("invalid_kind", ["nonexistent", "missing_registry", "missing_skills"])
+def test_invalid_explicit_repo_root_rejected_without_writes(
+    harness_copy, tmp_path, invalid_kind
+):
+    root = tmp_path / f"repo-{invalid_kind}"
+    canonical = root / "skills" / "cli-it-demoapp" / "SKILL.md"
+    if invalid_kind != "nonexistent":
+        root.mkdir()
+    if invalid_kind == "missing_registry":
+        canonical.parent.mkdir(parents=True)
+        canonical.write_bytes(b"canonical sentinel\n")
+    elif invalid_kind == "missing_skills":
+        (root / "registry.json").write_text("{}")
+
+    packaged = harness_copy / "cli_it" / "demoapp" / "skills" / "SKILL.md"
+    packaged_before = packaged.read_bytes()
+    with pytest.raises(ValueError, match="invalid CLI-It repository root"):
+        skill_generator.generate_skill_file(harness_copy, repo_root=root)
+
+    assert packaged.read_bytes() == packaged_before
+    if invalid_kind == "missing_registry":
+        assert canonical.read_bytes() == b"canonical sentinel\n"
+    else:
+        assert not canonical.exists()
+
+
+def test_packaged_skills_escape_rejected_before_either_write(harness_copy, tmp_path):
+    root, canonical = _repo_with_sentinel(tmp_path)
+    skills = harness_copy / "cli_it" / "demoapp" / "skills"
+    packaged_before = (skills / "SKILL.md").read_bytes()
+    shutil.rmtree(skills)
+    external = tmp_path / "external-skills"
+    external.mkdir()
+    external_file = external / "SKILL.md"
+    external_file.write_bytes(packaged_before)
+    _symlink_or_skip(skills, external)
+
+    with pytest.raises(ValueError, match="packaged skill destination escapes"):
+        skill_generator.generate_skill_file(harness_copy, repo_root=root)
+    assert canonical.read_bytes() == b"canonical sentinel\n"
+    assert external_file.read_bytes() == packaged_before
+
+
+def test_canonical_skills_escape_rejected_before_either_write(harness_copy, tmp_path):
+    root = tmp_path / "repo"
+    root.mkdir()
+    (root / "registry.json").write_text("{}")
+    external = tmp_path / "external-skills"
+    canonical = external / "cli-it-demoapp" / "SKILL.md"
+    canonical.parent.mkdir(parents=True)
+    canonical.write_bytes(b"canonical sentinel\n")
+    _symlink_or_skip(root / "skills", external)
+    packaged = harness_copy / "cli_it" / "demoapp" / "skills" / "SKILL.md"
+    packaged_before = packaged.read_bytes()
+
+    with pytest.raises(ValueError, match="repository skills marker escapes"):
+        skill_generator.generate_skill_file(harness_copy, repo_root=root)
+    assert canonical.read_bytes() == b"canonical sentinel\n"
+    assert packaged.read_bytes() == packaged_before
+
+
 def test_parser_handles_synthetic_module(tmp_path):
     harness = tmp_path / "toy" / "agent-harness"
     package = harness / "cli_it" / "toy"

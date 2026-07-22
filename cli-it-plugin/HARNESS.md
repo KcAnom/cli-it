@@ -19,6 +19,33 @@ piece of *real* software, packaged as `cli_it.<software>` and installable as
    **never** an `__init__.py` directly inside `cli_it/`.
 4. **Plan tests before writing them.** `TEST.md` precedes `test_*.py`.
 
+## Path protocol (validate before filesystem work)
+
+Keep three roles distinct:
+
+- `TARGET_PROJECT`: the acquired local source root or clone root.
+- `HARNESS_PATH = TARGET_PROJECT / "agent-harness"`.
+- `CLI_IT_REPO_ROOT`: the repository containing canonical skills and the
+  registry, when those outputs are required.
+
+Before the first harness-local `mkdir`, read, install, test, or write, require
+the submitted harness path's lexical basename to be exactly `agent-harness`.
+Resolve its lexical parent and the harness separately, then require
+`resolved(HARNESS_PATH) == resolved(TARGET_PROJECT) / "agent-harness"`. Never
+silently reinterpret a project root by appending the child name. Relative and
+absolute paths, `..` normalization, and symlinked target-project ancestors are
+allowed; top-level harness symlinks that escape the resolved project are not.
+Structural checks still determine whether a correctly named directory is a
+real harness.
+
+Resolve nested harness inputs and destinations (`cli_it/`, its software
+package, and packaged skill output) and require them to remain beneath the
+validated harness. Canonical skill and registry destinations are not
+harness-local: root them separately at validated `CLI_IT_REPO_ROOT` and reject
+escaping output symlinks. Perform all applicable destination checks before the
+first write. These checks reduce accidental redirection but cannot prevent a
+filesystem link being swapped between validation and use (TOCTOU).
+
 ## Mandatory directory structure
 
 ```text
@@ -124,11 +151,16 @@ resolution) to `TEST.md`. Honest numbers only.
 Run the generator — do not hand-write skills:
 
 ```bash
-python cli-it-plugin/skill_generator.py <software>/agent-harness
+TARGET_PROJECT=/absolute/path/to/acquired-project
+HARNESS_PATH="$TARGET_PROJECT/agent-harness"
+CLI_IT_REPO_ROOT=/absolute/path/to/cli-it
+python "$CLI_IT_REPO_ROOT/cli-it-plugin/skill_generator.py" \
+  "$HARNESS_PATH" --repo-root "$CLI_IT_REPO_ROOT"
 ```
 
-This dual-writes the canonical `skills/cli-it-<software>/SKILL.md` at the repo
-root and the packaged `cli_it/<software>/skills/SKILL.md` copy.
+Validate the path protocol first. The generator preflights both destinations,
+then writes the canonical `$CLI_IT_REPO_ROOT/skills/cli-it-<software>/SKILL.md`
+and packaged `$HARNESS_PATH/cli_it/<software>/skills/SKILL.md` copies.
 
 ## Phase 7 — Packaging
 
@@ -153,8 +185,9 @@ setup(
 )
 ```
 
-Verify: `pip install -e <software>/agent-harness && cli-it-<software> --help`,
-then add the registry entry (see CONTRIBUTING.md field table).
+Verify: `pip install -e "$HARNESS_PATH" && cli-it-<software> --help`, then
+add the registry entry beneath `CLI_IT_REPO_ROOT` (see CONTRIBUTING.md field
+table). Keep all harness-local packaging work beneath validated `HARNESS_PATH`.
 
 ---
 
@@ -174,6 +207,8 @@ then add the registry entry (see CONTRIBUTING.md field table).
 
 ## Completion checklist (used by /cli-it:validate)
 
+- [ ] `TARGET_PROJECT`, `HARNESS_PATH`, and (when needed) `CLI_IT_REPO_ROOT`
+      are distinct; direct-child and nested-boundary checks pass
 - [ ] Directory structure matches exactly; no `cli_it/__init__.py`
 - [ ] REPL starts when no subcommand; `--json` works on root
 - [ ] Backend isolation: real-software calls only in `utils/<software>_backend.py`
