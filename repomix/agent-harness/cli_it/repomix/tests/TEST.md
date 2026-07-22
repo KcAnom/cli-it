@@ -20,10 +20,10 @@ Written **before** the test code (HARNESS.md phase 4). Two suites:
 | `filter` | `list`, `add`, `remove` | no |
 | `option` | `list`, `set` | no |
 | `pack` | `argv`, `run`, `run --dry-run` | yes (except `argv` / `--dry-run`) |
-| `analyze` | `tokens`, `metrics` | yes |
+| `analyze` | `tokens`, `metrics`, `files` | yes |
 | `security` | `check` | yes |
 | `skill` | `generate`, `generate --dry-run` | yes (except `--dry-run`) |
-| `config` | `init`, `show` | `init` yes, `show` no |
+| `config` | `export`, `show` | no (see the 0.1.0 findings) |
 | `session` | `status`, `undo`, `redo` | no |
 | `preview` | `recipes`, `capture`, `latest` | no (needs a prior real pack) |
 
@@ -68,7 +68,7 @@ Written **before** the test code (HARNESS.md phase 4). Two suites:
 25. `parse_summary` extracts files/tokens/chars/output from a real Pack Summary
     block, stripping thousands separators and ANSI escapes.
 26. `parse_token_tree` returns ordered rows with names, token counts, depth.
-27. `parse_security` returns `clean=True` for "No suspicious files detected".
+27. `parse_security` returns a clean verdict for "No suspicious files detected".
 28. `parse_security` returns the file list when findings are present.
 29. `read_config` parses JSONC (line comments + trailing commas) — repomix's
     own shipped config uses both.
@@ -130,29 +130,78 @@ E11. `pack run` then `preview capture` writes a bundle with `manifest.json`
 | usage error (Click) | 2 |
 | harness error (`ClickException`) | 1 |
 | security findings present | 2 |
+| security output unrecognized (no verdict possible) | 1 |
 | repomix failure / missing binary / token budget exceeded | 1 |
 
 ---
+
+## Added in 0.2.0 — upstream-drift handling
+
+The summary, token-tree, and security parsers read repomix's decorated console
+output, which is not a stable API. 0.2.0 makes that failure mode loud:
+
+42. `parse_security` returns `status: unknown` (never `clean`) when it cannot
+    recognize the block; `clean` is `None`, and the detail names the tested range.
+43. `run_security_check` raises rather than returning an unconfirmed clean scan.
+44. `run_pack` / `run_metrics` raise a drift error when the summary yields no
+    `total_files`; `run_token_tree` raises when the tree is empty.
+45. `version_is_tested` classifies 1.17.x as tested, 1.18/2.x as not, and
+    unparseable strings as unknown (`None`).
+46. `probe` reports `tested_versions`, `version_tested`, and a `warning` when
+    the installed repomix is outside the tested range.
+47. `analyze files` reads `--style json --stdout` and derives the inventory from
+    repomix's JSON, so it cannot be broken by console-formatting changes.
+
+E12. `analyze files` against the real binary returns exactly the fixture's two
+     paths with non-zero char counts summing to `total_chars`.
+E13. `backend` reports `tested_versions` and flags an untested version.
 
 ## Results
 
 Run on macOS 25.2.0 (darwin), Python 3.13.7, click 8.3.1, pytest 9.1.1,
 repomix 1.17.0 (`/opt/homebrew/bin/repomix`), Node v24.7.0.
 
+### 0.1.0
+
+**With repomix installed:** `59 passed in 6.90s`.
+**With repomix unreachable:** `50 passed, 9 skipped in 0.07s` — all 9 skips are
+the e2e module, reason *"repomix binary not found (npm install -g repomix, or
+set $REPOMIX_BIN)"*. The unit suite needs no repomix, as required.
+
+### 0.2.0
+
 **With repomix installed** — `python -m pytest`:
 
 ```
-59 passed in 6.90s
+71 passed in 6.60s
 ```
 
-**With repomix unreachable** — `env -i PATH=<venv>:/usr/bin:/bin python -m pytest -rs`:
+**With repomix unreachable:**
 
 ```
-50 passed, 9 skipped in 0.07s
+60 passed, 11 skipped in 0.07s
 ```
 
-All 9 skips are the e2e module, reason: *"repomix binary not found (npm install
--g repomix, or set $REPOMIX_BIN)"*. The unit suite needs no repomix, as required.
+One failure during development: `analyze files` initially passed `-o` alongside
+`--stdout`, which repomix rejects outright (*"option '--stdout' cannot be used
+with option '-o, --output <file>'"*). The output pair is now dropped from the
+argv for that call.
+
+### Drift simulation (manual, 0.2.0)
+
+A stub on `$REPOMIX_BIN` reporting version 9.0.0, writing the output file, and
+printing an unrecognizable summary:
+
+```
+backend         → version_tested: false, warning naming the 1.17.x range
+pack run        → exit 1, "could not parse the pack summary ...", raw tail shown
+security check  → exit 1, same — no clean verdict issued
+```
+
+Under 0.1.0 that same stub made `security check` print *"no suspicious files
+detected"* and exit 0. That was the most dangerous defect in the harness: a
+formatting change upstream would have produced a confident false clean. It is
+the reason `parse_security` now has three outcomes instead of two.
 
 ### Failures found and resolved
 

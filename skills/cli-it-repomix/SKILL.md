@@ -1,7 +1,7 @@
 ---
 name: cli-it-repomix
 description: Agent-native, stateful CLI harness for the real [repomix](https://repomix.com)
-version: 0.1.0
+version: 0.2.0
 license: Apache-2.0
 ---
 
@@ -36,6 +36,7 @@ cli-it-repomix --help
 | `pack` | `argv` | Print the exact repomix command this profile would run. |
 | `pack` | `run` | Pack the target with the real repomix (verifies the artifact exists). |
 | `analyze` | `tokens` | Token-count tree for the profile's file selection. |
+| `analyze` | `files` | Per-file inventory read from repomix's JSON output (no text scraping). |
 | `analyze` | `metrics` | File/token/char counts via a metadata-only pack (`--no-files`). |
 | `security` | `check` | Scan for credentials and secrets; exit non-zero when any are found. |
 | `skill` | `generate` | Run `repomix --skill-generate` and verify the skill files exist. |

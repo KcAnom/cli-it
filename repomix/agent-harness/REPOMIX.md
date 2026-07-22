@@ -106,7 +106,7 @@ filter add|remove|list                   include/ignore glob patterns (journaled
 option set|list                          style, compress, budget, git flags (journaled)
 pack run [--dry-run] [--no-save]         REAL repomix invocation → verified output
 pack argv                                print the exact command line that would run
-analyze tokens|metrics                   token tree / metadata-only pack, parsed to JSON
+analyze tokens|metrics|files             token tree / metrics / JSON file inventory
 security check                           secretlint scan via a --no-files pack
 skill generate                           repomix --skill-generate (real skill output)
 config export|show                       write/read repomix.config.json
@@ -173,3 +173,20 @@ test proves the result by feeding it back to the real binary with `-c`.
 `target.set`) cannot be inverted from the post-change profile, because the old
 value is saved over. `apply_action` now records `previous` on those ops and
 `invert_action` replays it. See TEST.md for the regression case.
+
+**Console output is not an API (0.2.0).** The summary, token-tree, and security
+parsers scrape repomix's decorated stdout. That is unavoidable — repomix emits
+those numbers nowhere else — but it means an upstream formatting change can
+break them. The harness therefore:
+
+- never returns a plausible-looking empty result from a scrape: `run_pack`,
+  `run_metrics`, and `run_token_tree` raise a drift error naming the tested
+  version range and echoing what repomix actually printed;
+- treats an unrecognized security block as `status: unknown`, never `clean`.
+  `security check` exits non-zero instead of issuing a verdict it cannot
+  support. Under 0.1.0 the same situation produced a confident false clean;
+- reports `version_tested` from `backend`, warning when the installed repomix
+  is outside `TESTED_VERSIONS`;
+- offers `analyze files`, which derives its inventory from
+  `--style json --stdout` — repomix's documented JSON shape, immune to console
+  reformatting. Prefer it over `analyze metrics` where the per-file data suffices.

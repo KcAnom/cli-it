@@ -26,6 +26,15 @@ INSTALL_HINT = (
 
 DEFAULT_TIMEOUT = 900
 
+#: repomix releases this harness has actually been exercised against. The
+#: summary, token-tree, and security parsers read repomix's *decorated human
+#: output*, which is not a stable API — a formatting change upstream can break
+#: them. Everything that scrapes therefore fails loudly rather than returning a
+#: plausible-looking empty result, and `probe()` reports whether the installed
+#: version is one that was tested.
+TESTED_VERSIONS = "1.17.x"
+TESTED_MAJOR_MINOR = (1, 17)
+
 _ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 _SUMMARY_FIELDS = {
     "Total Files": "total_files",
@@ -65,6 +74,26 @@ def require_bin() -> list[str]:
 
 def available() -> bool:
     return resolve_bin() is not None
+
+
+def version_is_tested(version: str | None) -> bool | None:
+    """True/False when the version parses, None when it cannot be determined."""
+    if not version:
+        return None
+    match = re.search(r"(\d+)\.(\d+)", version)
+    if not match:
+        return None
+    return (int(match.group(1)), int(match.group(2))) == TESTED_MAJOR_MINOR
+
+
+def _drift_error(what: str, stdout: str) -> BackendError:
+    """Raised when repomix ran fine but its output could not be understood."""
+    tail = "\n".join(_clean(stdout).strip().splitlines()[-12:])
+    return BackendError(
+        f"could not parse {what} from repomix's output. This harness is tested "
+        f"against repomix {TESTED_VERSIONS}; a newer release may have changed its "
+        f"output format. Last lines of what repomix printed:\n{tail}"
+    )
 
 
 def _run(args: list[str], cwd: Path | None = None, timeout: int = DEFAULT_TIMEOUT):
@@ -109,6 +138,14 @@ def probe() -> dict:
         info["version"] = _clean(result.stdout).strip() or None
     else:
         info["error"] = _clean(result.stderr).strip()[:400]
+
+    info["tested_versions"] = TESTED_VERSIONS
+    info["version_tested"] = version_is_tested(info["version"])
+    if info["version"] and not info["version_tested"]:
+        info["warning"] = (
+            f"repomix {info['version']} is outside the tested range {TESTED_VERSIONS}; "
+            "commands that parse repomix's human output may need updating"
+        )
     node = shutil.which("node")
     if node:
         node_result = subprocess.run([node, "--version"], capture_output=True, text=True)
@@ -231,12 +268,21 @@ def parse_token_tree(stdout: str) -> list[dict]:
 
 
 def parse_security(stdout: str) -> dict:
-    """Parse the Security Check block: clean, or the suspicious files listed."""
+    """Parse the Security Check block.
+
+    Three outcomes, never two: `clean` requires repomix to have *said* the scan
+    was clean, `findings` lists what it flagged, and `unknown` means the block
+    could not be recognized at all. Defaulting an unrecognized block to clean
+    would turn a formatting change in repomix into a silent "no secrets here",
+    which is the one failure this command must never produce.
+    """
     text = _clean(stdout)
     findings: list[str] = []
+    saw_block = False
     in_block = False
     for line in text.splitlines():
         if "Security Check" in line:
+            saw_block = True
             in_block = True
             continue
         if not in_block:
@@ -247,9 +293,21 @@ def parse_security(stdout: str) -> dict:
         if stripped.startswith(("📊", "🎉", "💡", "🔢")):
             break
         if "No suspicious files detected" in stripped:
-            return {"clean": True, "suspicious_files": []}
+            return {"status": "clean", "clean": True, "suspicious_files": []}
         findings.append(stripped.lstrip("•-✖✔ ").strip())
-    return {"clean": not findings, "suspicious_files": findings}
+
+    if findings:
+        return {"status": "findings", "clean": False, "suspicious_files": findings}
+    return {
+        "status": "unknown",
+        "clean": None,
+        "suspicious_files": [],
+        "detail": (
+            "could not recognize repomix's security-check output"
+            + ("" if saw_block else " (no Security Check block found)")
+            + f" — this harness is tested against repomix {TESTED_VERSIONS}"
+        ),
+    }
 
 
 # --- operations --------------------------------------------------------------
@@ -285,6 +343,8 @@ def run_pack(profile, *, cwd: Path | None = None, output: str | None = None,
             f"repomix reported success but {artifact} does not exist — "
             "check the output path in the profile"
         )
+    if summary.get("total_files") is None:
+        raise _drift_error("the pack summary", stdout)
 
     return {
         "output_path": str(artifact),
@@ -310,7 +370,11 @@ def run_token_tree(profile, *, cwd: Path | None = None, threshold: int | None = 
         raise BackendError(
             f"repomix failed (exit {result.returncode}): {(_clean(result.stderr) or stdout)[:600]}"
         )
-    return {"tree": parse_token_tree(stdout), "summary": parse_summary(stdout)}
+    tree = parse_token_tree(stdout)
+    summary = parse_summary(stdout)
+    if not tree or summary.get("total_tokens") is None:
+        raise _drift_error("the token-count tree", stdout)
+    return {"tree": tree, "summary": summary}
 
 
 def run_metrics(profile, *, cwd: Path | None = None, output: str | None = None,
@@ -323,7 +387,10 @@ def run_metrics(profile, *, cwd: Path | None = None, output: str | None = None,
         raise BackendError(
             f"repomix failed (exit {result.returncode}): {(_clean(result.stderr) or stdout)[:600]}"
         )
-    return {"summary": parse_summary(stdout), "security": parse_security(stdout)}
+    summary = parse_summary(stdout)
+    if summary.get("total_files") is None:
+        raise _drift_error("the pack summary", stdout)
+    return {"summary": summary, "security": parse_security(stdout)}
 
 
 def run_security_check(profile, *, cwd: Path | None = None, output: str | None = None,
@@ -335,7 +402,14 @@ def run_security_check(profile, *, cwd: Path | None = None, output: str | None =
             "(clear it with: option set no_security_check false)"
         )
     metrics = run_metrics(profile, cwd=cwd, output=output, timeout=timeout)
-    return metrics["security"]
+    security = metrics["security"]
+    if security["status"] == "unknown":
+        raise BackendError(
+            f"{security['detail']}. Refusing to report a clean scan that was not "
+            "actually confirmed — inspect the repository manually, or run "
+            "`repomix` directly to see its security output."
+        )
+    return security
 
 
 def generate_skill(directory: Path, *, name: str | None = None, skill_output: Path | None = None,
@@ -368,6 +442,50 @@ def generate_skill(directory: Path, *, name: str | None = None, skill_output: Pa
         raise BackendError(f"repomix reported success but no skill files exist under {root}")
     return {"skill_dir": str(root) if root else None, "files": files,
             "summary": parse_summary(stdout)}
+
+
+def run_file_inventory(profile, *, cwd: Path | None = None,
+                       timeout: int = DEFAULT_TIMEOUT) -> dict:
+    """Per-file inventory taken from repomix's **JSON output**, not its logging.
+
+    `--style json --stdout` suppresses all decoration and emits
+    `{fileSummary, directoryStructure, files: {path: content}}`. Everything here
+    is derived from that structure, so unlike the summary/token/security
+    parsers this command cannot be broken by a change to repomix's console
+    formatting — only by a change to its documented JSON shape.
+    """
+    args = build_argv(profile, extra=["--stdout"])
+    # repomix rejects `--stdout` alongside `-o`, so drop the output pair; and the
+    # style must be json here regardless of what the profile asks for.
+    output_flag = args.index("-o")
+    del args[output_flag : output_flag + 2]
+    args[args.index("--style") + 1] = "json"
+    result = _run(args, cwd=cwd, timeout=timeout)
+    if result.returncode != 0:
+        raise BackendError(
+            f"repomix failed (exit {result.returncode}): "
+            f"{(_clean(result.stderr) or _clean(result.stdout))[:600]}"
+        )
+    try:
+        payload = json.loads(result.stdout)
+    except ValueError:
+        raise _drift_error("the JSON pack output", result.stdout)
+    if not isinstance(payload, dict) or "files" not in payload:
+        raise _drift_error("the JSON pack output (no 'files' key)", result.stdout)
+
+    files = payload["files"]
+    inventory = sorted(
+        ({"path": path, "chars": len(content or "")} for path, content in files.items()),
+        key=lambda row: row["chars"],
+        reverse=True,
+    )
+    return {
+        "files": inventory,
+        "total_files": len(inventory),
+        "total_chars": sum(row["chars"] for row in inventory),
+        "directory_structure": payload.get("directoryStructure"),
+        "source": "repomix --style json --stdout",
+    }
 
 
 def export_config(profile, path: Path, *, overwrite: bool = False) -> dict:

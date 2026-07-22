@@ -100,6 +100,27 @@ def test_analyze_tokens_and_metrics(profile: Path):
     assert json.loads(metrics.stdout)["summary"]["total_files"] == 2
 
 
+def test_analyze_files_uses_real_json_output(profile: Path):
+    """The inventory comes from repomix's JSON, so it must match the fixture exactly."""
+    result = run("--json", "analyze", "files", "-p", str(profile))
+    assert result.returncode == 0, result.stderr or result.stdout
+    data = json.loads(result.stdout)
+    assert data["source"] == "repomix --style json --stdout"
+    assert data["total_files"] == 2
+    paths = {row["path"] for row in data["files"]}
+    assert paths == {"src/a.js", "README.md"}
+    assert all(row["chars"] > 0 for row in data["files"])
+    assert data["total_chars"] == sum(row["chars"] for row in data["files"])
+
+
+def test_backend_probe_reports_version_tested(profile: Path):
+    info = json.loads(run("--json", "backend").stdout)
+    assert info["tested_versions"] == "1.17.x"
+    assert info["version_tested"] in (True, False)
+    if info["version_tested"] is False:
+        assert "warning" in info, "an untested version must be flagged"
+
+
 def test_security_check_clean_fixture(profile: Path):
     result = run("--json", "security", "check", "-p", str(profile))
     assert result.returncode == 0, result.stderr or result.stdout

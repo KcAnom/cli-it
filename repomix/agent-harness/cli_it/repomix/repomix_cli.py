@@ -419,6 +419,21 @@ def analyze_tokens(
     _emit(ctx, result, human)
 
 
+@analyze.command("files")
+@_profile_option
+@_cwd_option
+@click.option("--top", type=int, default=0, help="Show only the N largest files (0 = all).")
+@click.pass_context
+def analyze_files(ctx: click.Context, profile_path: Path, cwd: Path | None, top: int) -> None:
+    """Per-file inventory read from repomix's JSON output (no text scraping)."""
+    profile = _load(profile_path)
+    result = _backend_call(_backend.run_file_inventory, profile, cwd=cwd)
+    rows = result["files"][:top] if top else result["files"]
+    human = [f"{row['chars']:>9}  {row['path']}" for row in rows]
+    human.append(f"{result['total_files']} file(s), {result['total_chars']} chars")
+    _emit(ctx, {**result, "files": rows}, human)
+
+
 @analyze.command("metrics")
 @_profile_option
 @_cwd_option
@@ -446,7 +461,11 @@ def security() -> None:
 @_cwd_option
 @click.pass_context
 def security_check(ctx: click.Context, profile_path: Path, cwd: Path | None) -> None:
-    """Scan for credentials and secrets; exit non-zero when any are found."""
+    """Scan for credentials and secrets; exit non-zero when any are found.
+
+    Exits 1 rather than reporting a clean scan if repomix's security output
+    could not be understood — an unconfirmed "clean" is worse than an error.
+    """
     profile = _load(profile_path)
     result = _backend_call(
         _backend.run_security_check, profile, cwd=cwd, output=_scratch_output(profile)
@@ -725,7 +744,7 @@ _REPL_COMMANDS = {
     "filter list|add|remove": "include/ignore glob patterns (undoable)",
     "option list|set": "style, compress, token budget (undoable)",
     "pack argv|run [--dry-run]": "run the real repomix, verify the artifact",
-    "analyze tokens|metrics": "measure cost without shipping contents",
+    "analyze tokens|metrics|files": "measure cost without shipping contents",
     "security check": "secretlint scan (exit 2 when findings)",
     "skill generate": "repomix --skill-generate into a directory",
     "config export|show": "repomix.config.json handling",

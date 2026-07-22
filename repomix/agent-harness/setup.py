@@ -6,7 +6,7 @@ HERE = Path(__file__).resolve().parent
 
 setup(
     name="cli-it-repomix",
-    version="0.1.0",
+    version="0.2.0",
     description="CLI-It agent harness for the repomix codebase packer",
     long_description=(HERE / "cli_it" / "repomix" / "README.md").read_text(encoding="utf-8"),
     long_description_content_type="text/markdown",

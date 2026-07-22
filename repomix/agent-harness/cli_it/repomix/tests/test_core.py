@@ -292,13 +292,54 @@ def test_parse_token_tree():
 
 
 def test_parse_security_clean():
-    assert _backend.parse_security(REAL_STDOUT) == {"clean": True, "suspicious_files": []}
+    assert _backend.parse_security(REAL_STDOUT) == {
+        "status": "clean",
+        "clean": True,
+        "suspicious_files": [],
+    }
 
 
 def test_parse_security_findings():
     result = _backend.parse_security(DIRTY_SECURITY)
+    assert result["status"] == "findings"
     assert result["clean"] is False
     assert any("secrets.env" in entry for entry in result["suspicious_files"])
+
+
+def test_parse_security_unrecognized_is_never_clean():
+    """A format change upstream must not read as 'no secrets here'."""
+    result = _backend.parse_security("📦 Repomix v9.0.0\nsomething entirely new\n")
+    assert result["status"] == "unknown"
+    assert result["clean"] is None
+    assert "1.17.x" in result["detail"]
+
+
+def test_security_check_refuses_unconfirmed_clean(monkeypatch):
+    monkeypatch.setattr(
+        _backend,
+        "run_metrics",
+        lambda *a, **k: {
+            "summary": {"total_files": 1},
+            "security": _backend.parse_security("no recognizable block"),
+        },
+    )
+    with pytest.raises(_backend.BackendError, match="not actually confirmed"):
+        _backend.run_security_check(_profile.new_profile())
+
+
+@pytest.mark.parametrize(
+    "version,expected",
+    [("1.17.0", True), ("v1.17.9", True), ("1.18.0", False), ("2.0.1", False),
+     ("", None), ("unknown", None)],
+)
+def test_version_is_tested(version, expected):
+    assert _backend.version_is_tested(version) is expected
+
+
+def test_drift_error_names_the_tested_range():
+    error = _backend._drift_error("the pack summary", "line one\nline two\n")
+    assert "1.17.x" in str(error)
+    assert "line two" in str(error)
 
 
 def test_read_config_tolerates_jsonc(tmp_path: Path):
@@ -428,11 +469,25 @@ def test_cli_undo_empty_journal(runner: CliRunner, profile_path: Path):
     assert "nothing to undo" in result.output
 
 
+def test_cli_security_unknown_exits_non_zero(runner: CliRunner, profile_path: Path, monkeypatch):
+    def refuse(*args, **kwargs):
+        raise _backend.BackendError("could not recognize repomix's security-check output")
+
+    monkeypatch.setattr(_backend, "run_security_check", refuse)
+    result = runner.invoke(cli, ["security", "check", "-p", str(profile_path)])
+    assert result.exit_code != 0
+    assert "clean" not in result.output.lower() or "could not recognize" in result.output
+
+
 def test_cli_security_findings_exit_two(runner: CliRunner, profile_path: Path, monkeypatch):
     monkeypatch.setattr(
         _backend,
         "run_security_check",
-        lambda *a, **k: {"clean": False, "suspicious_files": ["src/secrets.env"]},
+        lambda *a, **k: {
+            "status": "findings",
+            "clean": False,
+            "suspicious_files": ["src/secrets.env"],
+        },
     )
     result = runner.invoke(cli, ["security", "check", "-p", str(profile_path)])
     assert result.exit_code == 2
